@@ -3,16 +3,25 @@ import pandas as pd
 from datetime import datetime, timedelta
 import requests
 
-API_URL = "https://api-inference.huggingface.co/models/gpt2"
-headers = {"Authorization": "Bearer YOUR_API_KEY"}  # replace with your token
+# ---------------------- HUGGING FACE CONFIG ----------------------
+HF_API_URL = "https://api-inference.huggingface.co/models/gpt2"  # you can change to another free model
+HF_API_TOKEN = st.secrets.get("HF_API_TOKEN", "")  # Add your Hugging Face token in Streamlit secrets
 
-def query(payload):
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response.json()
+headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
 
-data = query({"inputs": "Once upon a time in Jaipur,"})
-print(data)
-
+def generate_hf_recipes(prompt):
+    """Generate recipes using Hugging Face API."""
+    payload = {"inputs": prompt, "options": {"wait_for_model": True}}
+    try:
+        response = requests.post(HF_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            data = response.json()
+            text = data[0]['generated_text'] if isinstance(data, list) else str(data)
+            return text
+        else:
+            return f"Error: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Exception: {e}"
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
@@ -74,7 +83,7 @@ with tabs[0]:
         st.markdown("• **Smart Food Planner** - Plan meals and calculate portions")
         st.markdown("• **Food Sharing Hub** - Share surplus with your community")
         st.markdown("• **Favorite Recipes** - Save your go-to recipes")
-        st.caption("Built with Streamlit · SQLite · Optional APIs (Spoonacular/Edamam, Maps)")
+        st.caption("Built with Streamlit · SQLite · Optional APIs (Hugging Face, Maps)")
     
     with c2:
         st.markdown("**🚀 Quick Start**")
@@ -92,37 +101,12 @@ with tabs[0]:
                             st.markdown(f"<div class='recipe-card'><h4>🍳 {name}</h4></div>", unsafe_allow_html=True)
                 else:
                     st.warning("Please enter at least one ingredient.")
-        with col2:
+        with c2:
             if st.button("Clear Input", key="clear_btn", use_container_width=True):
                 st.session_state.home_ing = ""
                 st.experimental_rerun()
 
 # ---------------------- RECIPES ----------------------
-# ---------------------- RECIPES (HUGGING FACE VERSION) ----------------------
-import requests
-
-# Hugging Face API config
-HF_API_URL = "https://api-inference.huggingface.co/models/gpt2"  # change model if you like
-HF_API_TOKEN = "YOUR_HF_API_TOKEN"  # replace with your token
-
-headers = {
-    "Authorization": f"Bearer {HF_API_TOKEN}"
-}
-
-def generate_hf_recipes(prompt):
-    payload = {"inputs": prompt, "options": {"wait_for_model": True}}
-    try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload)
-        if response.status_code == 200:
-            data = response.json()
-            text = data[0]['generated_text'] if isinstance(data, list) else str(data)
-            return text
-        else:
-            return f"Error: {response.status_code} - {response.text}"
-    except Exception as e:
-        return f"Exception: {e}"
-
-# ---------------------- RECIPES TAB ----------------------
 with tabs[1]:
     st.subheader("🥘 Leftover Recipe Generator")
     st.markdown("Transform your leftover ingredients into delicious meals!")
@@ -149,7 +133,7 @@ Time:
 Difficulty:
 """
                 recipes_text = generate_hf_recipes(prompt)
-                st.session_state.ai_recipes = recipes_text.split("\n\n")  # split by double line break
+                st.session_state.ai_recipes = [r for r in recipes_text.split("\n\n") if r.strip()]
                 st.success("🎉 Here are AI-generated recipes!")
 
         # Display Hugging Face AI-generated recipes
@@ -181,4 +165,3 @@ Difficulty:
 - Step-by-step instructions
 - AI auto-portion suggestions
 """)
-
