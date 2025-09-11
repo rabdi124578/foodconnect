@@ -114,11 +114,13 @@ with tabs[1]:
                 Instructions:
                 """
                 try:
-                    response = openai.chat.completions.create(
-                        model="gpt-4",
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.7,
-                        max_tokens=600
+                      response = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo"
+    messages=[{"role": "user", "content": prompt}],
+    temperature=0.7,
+    max_tokens=500
+)
+
                     )
                     recipes_text = response.choices[0].message.content
                     st.session_state.ai_recipes = [r for r in recipes_text.split("\n\n") if r.strip()]
