@@ -1,23 +1,10 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import os
 import openai
 
-openai.api_key = "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"
-
-response = openai.chat.completions.create(
-    model="gpt-4",
-    messages=[{"role": "user", "content": "Hello, generate a recipe for rice and chicken"}],
-    temperature=0.7,
-    max_tokens=500
-)
-
-print(response.choices[0].message.content)
-
-
 # ---------------------- OPENAI CONFIG ----------------------
-openai.api_key = "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"  # Replace with your key
+openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your key
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
