@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import openai
 
-# ---------------------- OPENAI CONFIG ---------------------- 
+# ---------------------- OPENAI CONFIG ----------------------
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # ---------------------- PAGE CONFIG ----------------------
