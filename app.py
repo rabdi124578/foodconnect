@@ -94,6 +94,31 @@ with tabs[0]:
                 st.experimental_rerun()
 
 # ---------------------- RECIPES ----------------------
+# ---------------------- RECIPES (HUGGING FACE VERSION) ----------------------
+import requests
+
+# Hugging Face API config
+HF_API_URL = "https://api-inference.huggingface.co/models/gpt2"  # change model if you like
+HF_API_TOKEN = "YOUR_HF_API_TOKEN"  # replace with your token
+
+headers = {
+    "Authorization": f"Bearer {HF_API_TOKEN}"
+}
+
+def generate_hf_recipes(prompt):
+    payload = {"inputs": prompt, "options": {"wait_for_model": True}}
+    try:
+        response = requests.post(HF_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            data = response.json()
+            text = data[0]['generated_text'] if isinstance(data, list) else str(data)
+            return text
+        else:
+            return f"Error: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Exception: {e}"
+
+# ---------------------- RECIPES TAB ----------------------
 with tabs[1]:
     st.subheader("🥘 Leftover Recipe Generator")
     st.markdown("Transform your leftover ingredients into delicious meals!")
@@ -119,20 +144,11 @@ Instructions:
 Time:
 Difficulty:
 """
-                try:
-                    response = openai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.7,
-                        max_tokens=500
-                    )
-                    recipes_text = response.choices[0].message.content
-                    st.session_state.ai_recipes = recipes_text.split("\n\n")
-                    st.success("🎉 Here are AI-generated recipes!")
-                except Exception as e:
-                    st.error(f"Error generating recipes: {e}")
-        
-        # Display AI-generated recipes
+                recipes_text = generate_hf_recipes(prompt)
+                st.session_state.ai_recipes = recipes_text.split("\n\n")  # split by double line break
+                st.success("🎉 Here are AI-generated recipes!")
+
+        # Display Hugging Face AI-generated recipes
         if st.session_state.ai_recipes:
             for i, recipe in enumerate(st.session_state.ai_recipes):
                 with st.expander(f"AI Recipe {i+1}", expanded=i==0):
@@ -147,5 +163,18 @@ Difficulty:
                         })
                         st.success("Recipe saved to favorites!")
 
-# ---------------------- PLANNER, SHARING HUB, FAVORITES ----------------------
-# (Keep the rest of your existing code here; no changes needed for OpenAI API)
+    with c2:
+        st.info("💡 Tips for reducing food waste:")
+        st.markdown("""
+- Store leftovers properly in airtight containers
+- Use older ingredients first when cooking
+- Freeze leftovers you won't use immediately
+- Understand date labels (best before vs use by)
+""")
+        st.info("🔮 Coming Soon:")
+        st.markdown("""
+- Nutritional info
+- Step-by-step instructions
+- AI auto-portion suggestions
+""")
+
