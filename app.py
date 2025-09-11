@@ -126,94 +126,52 @@ with tabs[0]:
                 st.experimental_rerun()
 
 # ---------------------- RECIPES ----------------------
+import openai
+
+openai.api_key = "YOUR_OPENAI_API_KEY"  # <-- replace with your API key
+
 with tabs[1]:
     st.subheader("🥘 Leftover Recipe Generator")
     st.markdown("Transform your leftover ingredients into delicious meals!")
-    
+
     c1, c2 = st.columns([2,1])
     with c1:
-        ingredients = st.text_input("📝 Ingredients (comma-separated)", key="rec_ing", 
+        ingredients = st.text_input("📝 Enter your ingredients (any language, comma-separated)", key="rec_ing", 
                                    placeholder="e.g., chicken, rice, carrots, potatoes")
         diet = st.selectbox("Diet preference", ["Any", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free"])
         time_limit = st.slider("Max cooking time (minutes)", 10, 120, 30)
         difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Easy")
         
-        if st.button("🔍 Generate Recipes", key="rec_btn", use_container_width=True):
+        if st.button("🔍 Generate AI Recipes", key="ai_rec_btn", use_container_width=True):
             if ingredients.strip():
-                items = [x.strip() for x in ingredients.split(",") if x.strip()]
-                if items:
-                    base = items[:3] if len(items) >= 3 else items + ["veggies", "spices"][len(items):]
-                    tag = "" if diet=="Any" else f" · {diet}"
+                try:
+                    prompt = f"""
+                    Generate 3 recipes using these ingredients: {ingredients}.
+                    Diet preference: {diet}.
+                    Max cooking time: {time_limit} minutes.
+                    Difficulty: {difficulty}.
+                    Format the recipes like this:
+                    Recipe Name:
+                    Ingredients:
+                    Instructions:
+                    Time:
+                    Difficulty:
+                    """
                     
-                    st.success("🎉 Here are your personalized recipe suggestions!")
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        max_tokens=500
+                    )
                     
-                    # Recipe 1
-                    with st.expander(f"{base[0].title()} Quick Stir‑Fry", expanded=True):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base[:2])}, soy sauce, garlic, oil  
-                        **Instructions:** 
-                        1. Heat oil in a pan
-                        2. Add garlic and sauté
-                        3. Add {base[0]} and stir fry
-                        4. Add soy sauce and serve hot
-                        
-                        **Time:** {time_limit-10} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_1"):
-                            st.session_state.favorite_recipes.append({
-                                "name": f"{base[0].title()} Quick Stir‑Fry",
-                                "ingredients": f"{', '.join(base[:2])}, soy sauce, garlic, oil",
-                                "instructions": "1. Heat oil in a pan\n2. Add garlic and sauté\n3. Add main ingredient and stir fry\n4. Add soy sauce and serve hot",
-                                "time": f"{time_limit-10} minutes",
-                                "difficulty": difficulty
-                            })
-                            st.success("Recipe saved to favorites!")
+                    recipes_text = response['choices'][0]['message']['content']
+                    st.success("🎉 Here are AI-generated recipes!")
                     
-                    # Recipe 2
-                    with st.expander(f"{base[0].title()} {base[1].title()} Wraps"):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base[:2])}, tortillas, spices, yogurt  
-                        **Instructions:** 
-                        1. Cook {base[0]} and {base[1]} with spices
-                        2. Warm tortillas
-                        3. Fill tortillas with mixture
-                        4. Add yogurt and roll up
-                        
-                        **Time:** {time_limit} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_2"):
-                            st.session_state.favorite_recipes.append({
-                                "name": f"{base[0].title()} {base[1].title()} Wraps",
-                                "ingredients": f"{', '.join(base[:2])}, tortillas, spices, yogurt",
-                                "instructions": "1. Cook main ingredients with spices\n2. Warm tortillas\n3. Fill tortillas with mixture\n4. Add yogurt and roll up",
-                                "time": f"{time_limit} minutes",
-                                "difficulty": difficulty
-                            })
-                            st.success("Recipe saved to favorites!")
+                    st.markdown(f"<pre>{recipes_text}</pre>", unsafe_allow_html=True)
                     
-                    # Recipe 3
-                    with st.expander(f"Hearty {base[0].title()} Soup"):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base)}, broth, herbs, potatoes  
-                        **Instructions:** 
-                        1. Sauté {base[0]} and other veggies
-                        2. Add broth and potatoes
-                        3. Simmer for 20 minutes
-                        4. Add herbs and serve
-                        
-                        **Time:** {time_limit+5} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_3"):
-                            st.session_state.favorite_recipes.append({
-                                "name": f"Hearty {base[0].title()} Soup",
-                                "ingredients": f"{', '.join(base)}, broth, herbs, potatoes",
-                                "instructions": "1. Sauté main ingredients and other veggies\n2. Add broth and potatoes\n3. Simmer for 20 minutes\n4. Add herbs and serve",
-                                "time": f"{time_limit+5} minutes",
-                                "difficulty": difficulty
-                            })
-                            st.success("Recipe saved to favorites!")
-                else:
-                    st.warning("Please enter at least one valid ingredient.")
+                except Exception as e:
+                    st.error(f"Error generating recipes: {e}")
             else:
                 st.warning("Please enter at least one ingredient.")
     
@@ -225,68 +183,7 @@ with tabs[1]:
         - Freeze leftovers you won't use immediately
         - Understand date labels (best before vs use by)
         """)
-        
-        st.info("🔮 **Coming Soon:**")
-        st.markdown("""
-        - API integration with Spoonacular for real recipes
-        - Nutritional information
-        - Step-by-step cooking instructions
-        """)
 
-# ---------------------- PLANNER ----------------------
-with tabs[2]:
-    st.subheader("📅 Smart Food Planner")
-    st.caption("Estimate ingredient quantities based on number of people and plan your meals.")
-    
-    # Meal planning section
-    st.markdown("### 🍽️ Weekly Meal Planner")
-    
-    # Create a simple weekly planner
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    meals = ["Breakfast", "Lunch", "Dinner"]
-    
-    planner_cols = st.columns(7)
-    for i, day in enumerate(days):
-        with planner_cols[i]:
-            st.markdown(f"**{day}**")
-            for meal in meals:
-                st.session_state.meal_plan[day][meal] = st.text_input(
-                    f"{meal}", 
-                    value=st.session_state.meal_plan[day][meal],
-                    key=f"{day}_{meal}"
-                )
-    
-    # Quantity calculator
-    st.markdown("### 📊 Quantity Calculator")
-    dish = st.text_input("Dish name", value="Veg Fried Rice")
-    people = st.number_input("Number of people", 1, 100, 4, step=1)
-    
-    # Simple baseline per-person grams (demo values)
-    baseline = {
-        "rice (g)": 90, "mixed veggies (g)": 120, "oil (tbsp)": 0.75, 
-        "spices (tsp)": 1.0, "salt (tsp)": 0.5, "protein (g)": 100
-    }
-    
-    if st.button("Calculate quantities", key="plan_btn", use_container_width=True):
-        rows = []
-        for k, v in baseline.items():
-            qty = v * people
-            rows.append({"Ingredient": k, "Per Person": v, "Total Quantity": round(qty, 2)})
-        
-        df = pd.DataFrame(rows)
-        st.write(f"**Plan for:** {people} people · **Dish:** {dish}")
-        st.dataframe(df, use_container_width=True)
-        
-        # Shopping list generator
-        st.download_button(
-            label="📥 Download Shopping List",
-            data=df.to_csv(index=False),
-            file_name="shopping_list.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-        
-        st.caption("Adjust baseline amounts as needed for your recipes.")
 
 # ---------------------- SHARING HUB ----------------------
 with tabs[3]:
