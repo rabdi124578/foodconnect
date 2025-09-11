@@ -101,30 +101,34 @@ with tabs[1]:
         time_limit = st.slider("Max cooking time (minutes)", 10, 120, 30)
         difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Easy")
         
-        if st.button("🔍 Generate AI Recipes", key="ai_rec_btn", use_container_width=True):
-            if ingredients.strip():
-                prompt = f"""
-                Generate 3 creative recipes using these leftover ingredients: {ingredients}.
-                Diet preference: {diet}.
-                Max cooking time: {time_limit} minutes.
-                Difficulty: {difficulty}.
-                Format each recipe as:
-                Recipe Name:
-                Ingredients:
-                Instructions:
-                """
-                try:response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": prompt}],
-    temperature=0.7,
-    max_tokens=500
-)
-        )
-        recipes_text = response.choices[0].message.content
-                    st.session_state.ai_recipes = [r for r in recipes_text.split("\n\n") if r.strip()]
-                    st.success("🎉 Here are AI-generated recipes!")
-                except Exception as e:
-                    st.error(f"Error generating recipes: {e}")
+       if st.button("🔍 Generate AI Recipes", key="ai_rec_btn", use_container_width=True):
+    if ingredients.strip():
+        prompt = f"""
+        Generate 3 recipes using these ingredients: {ingredients}.
+        Diet preference: {diet}.
+        Max cooking time: {time_limit} minutes.
+        Difficulty: {difficulty}.
+        Format as:
+        Recipe Name:
+        Ingredients:
+        Instructions:
+        Time:
+        Difficulty:
+        """
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",   # use this instead of gpt-4
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=500
+            )
+
+            recipes_text = response['choices'][0]['message']['content']
+            st.session_state.ai_recipes = recipes_text.split("\n\n")  # simple split for each recipe
+            st.success("🎉 Here are AI-generated recipes!")
+
+        except Exception as e:
+            st.error(f"Error generating recipes: {e}")
         
         # Display AI-generated recipes
         if st.session_state.ai_recipes:
