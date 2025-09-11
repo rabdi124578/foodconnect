@@ -104,24 +104,24 @@ with tabs[1]:
         if st.button("🔍 Generate AI Recipes", key="ai_rec_btn", use_container_width=True):
             if ingredients.strip():
                 prompt = f"""
-                Generate 3 recipes using these ingredients: {ingredients}.
-                Diet preference: {diet}.
-                Max cooking time: {time_limit} minutes.
-                Difficulty: {difficulty}.
-                Format as:
-                Recipe Name:
-                Ingredients:
-                Instructions:
-                Time:
-                Difficulty:
-                """
-              try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",   # use this instead of gpt-4
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=500
-            )
+Generate 3 recipes using these ingredients: {ingredients}.
+Diet preference: {diet}.
+Max cooking time: {time_limit} minutes.
+Difficulty: {difficulty}.
+Format as:
+Recipe Name:
+Ingredients:
+Instructions:
+Time:
+Difficulty:
+"""
+                try:
+                    response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        max_tokens=500
+                    )
                     recipes_text = response['choices'][0]['message']['content']
                     st.session_state.ai_recipes = recipes_text.split("\n\n")  # simple split for each recipe
                     st.success("🎉 Here are AI-generated recipes!")
@@ -134,122 +134,26 @@ with tabs[1]:
                 with st.expander(f"AI Recipe {i+1}", expanded=i==0):
                     st.markdown(f"<pre>{recipe}</pre>", unsafe_allow_html=True)
                     if st.button("⭐ Save Recipe", key=f"save_ai_{i}"):
-                        st.session_state.favorite_recipes.append({"name": f"AI Recipe {i+1}", "ingredients": "From AI", "instructions": recipe, "time": f"{time_limit} min", "difficulty": difficulty})
+                        st.session_state.favorite_recipes.append({
+                            "name": f"AI Recipe {i+1}",
+                            "ingredients": "From AI",
+                            "instructions": recipe,
+                            "time": f"{time_limit} min",
+                            "difficulty": difficulty
+                        })
                         st.success("Recipe saved to favorites!")
 
     with c2:
         st.info("💡 Tips for reducing food waste:")
         st.markdown("""
-        - Store leftovers properly in airtight containers
-        - Use older ingredients first when cooking
-        - Freeze leftovers you won't use immediately
-        - Understand date labels (best before vs use by)
-        """)
+- Store leftovers properly in airtight containers
+- Use older ingredients first when cooking
+- Freeze leftovers you won't use immediately
+- Understand date labels (best before vs use by)
+""")
         st.info("🔮 Coming Soon:")
         st.markdown("""
-        - Nutritional info
-        - Step-by-step instructions
-        - AI auto-portion suggestions
-        """)
-
-# ---------------------- PLANNER ----------------------
-with tabs[2]:
-    st.subheader("📅 Smart Food Planner")
-    st.caption("Estimate ingredient quantities based on number of people and plan your meals.")
-    
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    meals = ["Breakfast", "Lunch", "Dinner"]
-    
-    planner_cols = st.columns(7)
-    for i, day in enumerate(days):
-        with planner_cols[i]:
-            st.markdown(f"**{day}**")
-            for meal in meals:
-                st.session_state.meal_plan[day][meal] = st.text_input(f"{meal}", value=st.session_state.meal_plan[day][meal], key=f"{day}_{meal}")
-    
-    st.markdown("### 📊 Quantity Calculator")
-    dish = st.text_input("Dish name", value="Veg Fried Rice")
-    people = st.number_input("Number of people", 1, 100, 4, step=1)
-    baseline = {"rice (g)": 90, "mixed veggies (g)": 120, "oil (tbsp)": 0.75, "spices (tsp)": 1.0, "salt (tsp)": 0.5, "protein (g)": 100}
-    
-    if st.button("Calculate quantities", key="plan_btn", use_container_width=True):
-        rows = [{"Ingredient": k, "Per Person": v, "Total Quantity": round(v*people,2)} for k,v in baseline.items()]
-        df = pd.DataFrame(rows)
-        st.write(f"**Plan for:** {people} people · **Dish:** {dish}")
-        st.dataframe(df, use_container_width=True)
-        st.download_button(label="📥 Download Shopping List", data=df.to_csv(index=False), file_name="shopping_list.csv", mime="text/csv", use_container_width=True)
-        st.caption("Adjust baseline amounts as needed for your recipes.")
-
-# ---------------------- SHARING HUB ----------------------
-with tabs[3]:
-    st.subheader("🤝 Share, Sell, or Donate Surplus")
-    st.caption("Connect with your community to reduce food waste together")
-    
-    mode = st.radio("I want to:", ["Donate", "Sell"], horizontal=True)
-    
-    colA, colB = st.columns(2)
-    with colA:
-        item = st.text_input("Item name", value="Cooked rice (sealed)")
-        qty = st.text_input("Quantity / units", value="2 boxes")
-        expiry = st.date_input("Expiry date", min_value=datetime.today(), value=datetime.today() + timedelta(days=2))
-        location = st.text_input("Location / Area", value="Campus Block A")
-        contact = st.text_input("Contact (phone/email)", value="example@iitj.ac.in")
-    with colB:
-        dietary_info = st.multiselect("Dietary information", ["Vegetarian", "Vegan", "Gluten-free", "Dairy-free", "Contains nuts"])
-        notes = st.text_area("Additional notes")
-        price = st.number_input("Price (₹)", min_value=0, value=50, step=5) if mode=="Sell" else None
-    
-    if st.button("Add listing", key="share_btn", use_container_width=True):
-        if not all([item, qty, location, contact]):
-            st.error("Please fill in all required fields")
-        else:
-            st.session_state.shared_items.append({
-                "mode": mode, "item": item, "qty": qty, "expiry": expiry.strftime("%Y-%m-%d"),
-                "dietary": ", ".join(dietary_info) if dietary_info else "None",
-                "location": location, "contact": contact, "price": price if mode=="Sell" else "Free",
-                "notes": notes, "date_posted": datetime.today().strftime("%Y-%m-%d")
-            })
-            st.success("Listing added successfully! ✅")
-    
-    if st.session_state.shared_items:
-        st.markdown("### 📋 Current Listings")
-        for i, item in enumerate(st.session_state.shared_items):
-            with st.expander(f"{item['item']} - {item['location']} ({item['mode']})", expanded=i==0):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**Quantity:** {item['qty']}"); st.write(f"**Expiry:** {item['expiry']}"); st.write(f"**Dietary:** {item['dietary']}")
-                with col2:
-                    st.write(f"**Location:** {item['location']}"); st.write(f"**Contact:** {item['contact']}"); st.write(f"**Price:** {item['price']}")
-                if item['notes']: st.info(f"**Notes:** {item['notes']}")
-                if st.button("Remove Listing", key=f"remove_{i}"):
-                    st.session_state.shared_items.pop(i); st.experimental_rerun()
-    else:
-        st.info("No listings yet. Add one above to get started!")
-
-# ---------------------- FAVORITES ----------------------
-with tabs[4]:
-    st.subheader("⭐ Favorite Recipes")
-    if st.session_state.favorite_recipes:
-        st.success("Your saved recipes:")
-        for i, recipe in enumerate(st.session_state.favorite_recipes):
-            with st.expander(f"{recipe['name']} - {recipe['time']} - {recipe['difficulty']}", expanded=i==0):
-                st.write(f"**Ingredients:** {recipe['ingredients']}"); st.write("**Instructions:**"); st.write(recipe['instructions'].replace('\n','  \n'))
-                if st.button("Remove from Favorites", key=f"remove_recipe_{i}"):
-                    st.session_state.favorite_recipes.pop(i); st.experimental_rerun()
-    else:
-        st.info("You haven't saved any recipes yet. Generate some recipes and click the ⭐ button to save them!")
-        with st.expander("View sample recipes"):
-            st.markdown("""
-            **🍳 Veggie Stir-Fry**  
-            **Ingredients:** mixed veggies, soy sauce, garlic, oil  
-            **Instructions:**  
-            1. Heat oil in a pan  
-            2. Add garlic and sauté  
-            3. Add veggies and stir fry  
-            4. Add soy sauce and serve hot  
-            **Time:** 20 minutes · **Difficulty:** Easy
-            """)
-
-# ---------------------- FOOTER ----------------------
-st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>FoodWise ♻️ · Reduce Food Waste · Help Your Community · Save Money</div>", unsafe_allow_html=True)
+- Nutritional info
+- Step-by-step instructions
+- AI auto-portion suggestions
+""")
