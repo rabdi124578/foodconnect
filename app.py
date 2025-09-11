@@ -4,7 +4,11 @@ from datetime import datetime, timedelta
 import openai
 
 # ---------------------- OPENAI CONFIG ----------------------
-openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your key
+import streamlit as st
+import openai
+
+# Get API key from secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
