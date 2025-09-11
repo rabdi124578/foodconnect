@@ -116,14 +116,14 @@ Time:
 Difficulty:
 """
                 try:
-                    response = openai.ChatCompletion.create(
+                    response = openai.chat.completions.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.7,
                         max_tokens=500
                     )
-                    recipes_text = response['choices'][0]['message']['content']
-                    st.session_state.ai_recipes = recipes_text.split("\n\n")  # simple split for each recipe
+                    recipes_text = response.choices[0].message.content
+                    st.session_state.ai_recipes = recipes_text.split("\n\n")
                     st.success("🎉 Here are AI-generated recipes!")
                 except Exception as e:
                     st.error(f"Error generating recipes: {e}")
@@ -143,17 +143,5 @@ Difficulty:
                         })
                         st.success("Recipe saved to favorites!")
 
-    with c2:
-        st.info("💡 Tips for reducing food waste:")
-        st.markdown("""
-- Store leftovers properly in airtight containers
-- Use older ingredients first when cooking
-- Freeze leftovers you won't use immediately
-- Understand date labels (best before vs use by)
-""")
-        st.info("🔮 Coming Soon:")
-        st.markdown("""
-- Nutritional info
-- Step-by-step instructions
-- AI auto-portion suggestions
-""")
+# ---------------------- PLANNER, SHARING HUB, FAVORITES ----------------------
+# (Keep the rest of your existing code here; no changes needed for OpenAI API)
