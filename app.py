@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import openai
 
-# ---------------------- OPENAI CONFIG ----------------------
+# ---------------------- OPENAI CONFIG ---------------------- 
 openai.api_key = "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"  # Replace with your key
 
 # ---------------------- PAGE CONFIG ----------------------
