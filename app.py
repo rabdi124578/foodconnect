@@ -11,12 +11,6 @@ st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
 def init_db():
     conn = sqlite3.connect("foodwise.db")
     c = conn.cursor()
-    # Users table
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  username TEXT UNIQUE,
-                  password TEXT,
-                  role TEXT)''')
     # Listings table
     c.execute('''CREATE TABLE IF NOT EXISTS listings
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,33 +31,6 @@ def init_db():
 
 init_db()  # Ensure DB is ready
 
-# ---------------- SESSION STATE ----------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = ""
-    st.session_state.role = None
-
-# ---------------- LOGIN / SIGNUP ----------------
-def signup(username, password, role):
-    conn = sqlite3.connect("foodwise.db")
-    c = conn.cursor()
-    try:
-        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, password, role))
-        conn.commit()
-        return True
-    except:
-        return False
-    finally:
-        conn.close()
-
-def login(username, password):
-    conn = sqlite3.connect("foodwise.db")
-    c = conn.cursor()
-    c.execute("SELECT username, role FROM users WHERE username=? AND password=?", (username, password))
-    user = c.fetchone()
-    conn.close()
-    return user
-
 # ---------------- MAP EMBED ----------------
 def get_map_embed(location):
     if "google.com/maps" in location:
@@ -72,46 +39,19 @@ def get_map_embed(location):
         encoded = urllib.parse.quote_plus(location)
         return f"https://www.google.com/maps?q={encoded}&output=embed"
 
+# ---------------- SESSION STATE ----------------
+if "username" not in st.session_state:
+    st.session_state.username = "Guest"  # default username
+
 # ---------------- MAIN ----------------
-def main():
-    if not st.session_state.logged_in:
-        st.title("🍲 FoodWise Login / Signup")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        role = st.radio("Role", ["Seller", "Consumer"], horizontal=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Login"):
-                user = login(username.strip(), password.strip())
-                if user:
-                    st.session_state.logged_in = True
-                    st.session_state.username = user[0]
-                    st.session_state.role = user[1]
-                    st.experimental_rerun()
-                else:
-                    st.error("Invalid credentials")
-        with col2:
-            if st.button("Signup"):
-                success = signup(username.strip(), password.strip(), role)
-                if success:
-                    st.success("Account created! You can login now.")
-                else:
-                    st.error("Username already exists")
-    else:
-        st.sidebar.success(f"👋 Hello {st.session_state.username} ({st.session_state.role})")
-        if st.sidebar.button("Logout"):
-            st.session_state.logged_in = False
-            st.session_state.username = ""
-            st.session_state.role = None
-            st.experimental_rerun()
-        
-        if st.session_state.role.lower() == "seller":
-            seller_view()
-        else:
-            consumer_view()
+st.title("🍲 FoodWise - Login-Free Version")
+
+st.text_input("Enter your name:", key="username")
+
+role = st.radio("Select your role:", ["Seller", "Consumer"], horizontal=True)
 
 # ---------------- SELLER VIEW ----------------
-def seller_view():
+if role == "Seller":
     st.header("🏠 Seller Dashboard")
     st.subheader("➕ Add Listing")
     item = st.text_input("Food Item")
@@ -156,7 +96,7 @@ def seller_view():
         st.info("No listings yet")
 
 # ---------------- CONSUMER VIEW ----------------
-def consumer_view():
+else:
     st.header("🏠 Consumer Dashboard")
     conn = sqlite3.connect("foodwise.db")
     c = conn.cursor()
@@ -169,18 +109,15 @@ def consumer_view():
             st.write(f"📍 {loc}")
             st.write(f"🕒 {ts}")
             st.components.v1.iframe(get_map_embed(loc), height=250)
+            consumer_name = st.session_state.username
             if st.button(f"Claim Food - {listing_id}"):
                 conn = sqlite3.connect("foodwise.db")
                 c = conn.cursor()
                 c.execute("INSERT INTO claims (consumer_name, listing_id, claim_time) VALUES (?, ?, ?)",
-                          (st.session_state.username, listing_id, str(datetime.datetime.now())))
+                          (consumer_name, listing_id, str(datetime.datetime.now())))
                 conn.commit()
                 conn.close()
                 st.success(f"✅ You claimed {item} from {seller}")
             st.markdown("---")
     else:
         st.info("No food listings yet")
-
-# ---------------- RUN ----------------
-if __name__ == "__main__":
-    main()
