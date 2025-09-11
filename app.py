@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import os
 import openai
 
-openai.api_key = "YOUR_OPENAI_API_KEY"
+openai.api_key = "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"
 
 response = openai.chat.completions.create(
     model="gpt-4",
