@@ -1,14 +1,18 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import openai
+import requests
 
-# ---------------------- OPENAI CONFIG ----------------------
-import streamlit as st
-import openai
+API_URL = "https://api-inference.huggingface.co/models/gpt2"
+headers = {"Authorization": "Bearer YOUR_API_KEY"}  # replace with your token
 
-# Get API key from secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
+
+data = query({"inputs": "Once upon a time in Jaipur,"})
+print(data)
+
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
