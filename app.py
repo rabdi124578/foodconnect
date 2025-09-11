@@ -119,7 +119,8 @@ with tabs[1]:
     temperature=0.7,
     max_tokens=500
 )
-                    recipes_text = response.choices[0].message.content
+        )
+        recipes_text = response.choices[0].message.content
                     st.session_state.ai_recipes = [r for r in recipes_text.split("\n\n") if r.strip()]
                     st.success("🎉 Here are AI-generated recipes!")
                 except Exception as e:
