@@ -4,8 +4,17 @@ from datetime import datetime, timedelta
 import os
 import openai
 
-# API key ko TOML secrets se load karo
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = "YOUR_OPENAI_API_KEY"
+
+response = openai.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello, generate a recipe for rice and chicken"}],
+    temperature=0.7,
+    max_tokens=500
+)
+
+print(response.choices[0].message.content)
+
 
 # ---------------------- OPENAI CONFIG ----------------------
 openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your key
