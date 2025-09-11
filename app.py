@@ -5,6 +5,16 @@ import openai
 
 # ---------------------- OPENAI CONFIG ---------------------- 
 openai.api_key = "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"  # Replace with your key
+response = openai.chat.completions.create(
+    model="gpt-4",
+    messages=[
+        {"role": "user", "content": "Generate 3 recipes using chicken and rice."}
+    ],
+    temperature=0.7,
+    max_tokens=500
+)
+
+recipes_text = response.choices[0].message.content
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
