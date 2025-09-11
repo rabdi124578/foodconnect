@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import openai
 
 # ---------------------- OPENAI CONFIG ----------------------
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your key
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
@@ -96,39 +96,37 @@ with tabs[1]:
 
     c1, c2 = st.columns([2,1])
     with c1:
-        ingredients = st.text_input("📝 Enter leftover ingredients (comma-separated)", key="rec_ing", placeholder="e.g., chicken, rice, carrots")
+        ingredients = st.text_input("📝 Enter ingredients (any language)", key="rec_ing", placeholder="e.g., chicken, rice, carrots")
         diet = st.selectbox("Diet preference", ["Any", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free"])
         time_limit = st.slider("Max cooking time (minutes)", 10, 120, 30)
         difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Easy")
         
-       if st.button("🔍 Generate AI Recipes", key="ai_rec_btn", use_container_width=True):
-    if ingredients.strip():
-        prompt = f"""
-        Generate 3 recipes using these ingredients: {ingredients}.
-        Diet preference: {diet}.
-        Max cooking time: {time_limit} minutes.
-        Difficulty: {difficulty}.
-        Format as:
-        Recipe Name:
-        Ingredients:
-        Instructions:
-        Time:
-        Difficulty:
-        """
-        try:
+        if st.button("🔍 Generate AI Recipes", key="ai_rec_btn", use_container_width=True):
+            if ingredients.strip():
+                prompt = f"""
+                Generate 3 recipes using these ingredients: {ingredients}.
+                Diet preference: {diet}.
+                Max cooking time: {time_limit} minutes.
+                Difficulty: {difficulty}.
+                Format as:
+                Recipe Name:
+                Ingredients:
+                Instructions:
+                Time:
+                Difficulty:
+                """
+              try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",   # use this instead of gpt-4
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 max_tokens=500
             )
-
-            recipes_text = response['choices'][0]['message']['content']
-            st.session_state.ai_recipes = recipes_text.split("\n\n")  # simple split for each recipe
-            st.success("🎉 Here are AI-generated recipes!")
-
-        except Exception as e:
-            st.error(f"Error generating recipes: {e}")
+                    recipes_text = response['choices'][0]['message']['content']
+                    st.session_state.ai_recipes = recipes_text.split("\n\n")  # simple split for each recipe
+                    st.success("🎉 Here are AI-generated recipes!")
+                except Exception as e:
+                    st.error(f"Error generating recipes: {e}")
         
         # Display AI-generated recipes
         if st.session_state.ai_recipes:
@@ -136,15 +134,23 @@ with tabs[1]:
                 with st.expander(f"AI Recipe {i+1}", expanded=i==0):
                     st.markdown(f"<pre>{recipe}</pre>", unsafe_allow_html=True)
                     if st.button("⭐ Save Recipe", key=f"save_ai_{i}"):
-                        st.session_state.favorite_recipes.append({
-                            "name": f"AI Recipe {i+1}",
-                            "ingredients": "From AI",
-                            "instructions": recipe,
-                            "time": f"{time_limit} min",
-                            "difficulty": difficulty
-                        })
+                        st.session_state.favorite_recipes.append({"name": f"AI Recipe {i+1}", "ingredients": "From AI", "instructions": recipe, "time": f"{time_limit} min", "difficulty": difficulty})
                         st.success("Recipe saved to favorites!")
 
+    with c2:
+        st.info("💡 Tips for reducing food waste:")
+        st.markdown("""
+        - Store leftovers properly in airtight containers
+        - Use older ingredients first when cooking
+        - Freeze leftovers you won't use immediately
+        - Understand date labels (best before vs use by)
+        """)
+        st.info("🔮 Coming Soon:")
+        st.markdown("""
+        - Nutritional info
+        - Step-by-step instructions
+        - AI auto-portion suggestions
+        """)
 
 # ---------------------- PLANNER ----------------------
 with tabs[2]:
