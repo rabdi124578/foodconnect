@@ -17,7 +17,7 @@ print(response.choices[0].message.content)
 
 
 # ---------------------- OPENAI CONFIG ----------------------
-openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your key
+openai.api_key = "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"  # Replace with your key
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
