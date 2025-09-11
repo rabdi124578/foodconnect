@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import os
 import openai
+
+# API key ko TOML secrets se load karo
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # ---------------------- OPENAI CONFIG ----------------------
 openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with your key
