@@ -125,11 +125,130 @@ with tabs[0]:
                 st.session_state.home_ing = ""
                 st.experimental_rerun()
 
-# ---------------------- RECIPES ----------------------
-with tabs[1]:
+
+import streamlit as st
+
+# ---------------------- RECIPE DATABASE ----------------------
+# You can expand this list up to 50+ recipes easily
+RECIPE_TEMPLATES = [
+    {
+        "name": "Quick Stir-Fry",
+        "ingredients": "{main}, {secondary}, soy sauce, garlic, oil",
+        "instructions": [
+            "Heat oil in a pan",
+            "Add garlic and sauté",
+            "Add {main} and stir fry",
+            "Add soy sauce and serve hot"
+        ],
+        "time_offset": -10
+    },
+    {
+        "name": "{main} {secondary} Wraps",
+        "ingredients": "{main}, {secondary}, tortillas, spices, yogurt",
+        "instructions": [
+            "Cook {main} and {secondary} with spices",
+            "Warm tortillas",
+            "Fill tortillas with mixture",
+            "Add yogurt and roll up"
+        ],
+        "time_offset": 0
+    },
+    {
+        "name": "Hearty {main} Soup",
+        "ingredients": "{main}, {secondary}, {extra}, broth, herbs, potatoes",
+        "instructions": [
+            "Sauté {main} and veggies",
+            "Add broth and potatoes",
+            "Simmer for 20 minutes",
+            "Add herbs and serve"
+        ],
+        "time_offset": +5
+    },
+    {
+        "name": "Creamy {main} Pasta",
+        "ingredients": "{main}, pasta, cream, cheese, garlic, herbs",
+        "instructions": [
+            "Boil pasta until al dente",
+            "Cook {main} with garlic",
+            "Add cream and cheese to pan",
+            "Mix pasta and sauce, serve with herbs"
+        ],
+        "time_offset": +15
+    },
+    {
+        "name": "{main} Fried Rice",
+        "ingredients": "{main}, rice, soy sauce, spring onions, egg (optional)",
+        "instructions": [
+            "Heat oil in wok",
+            "Add {main} and stir fry",
+            "Add cooked rice and soy sauce",
+            "Garnish with spring onions and serve"
+        ],
+        "time_offset": +5
+    },
+    {
+        "name": "Spicy {main} Curry",
+        "ingredients": "{main}, onion, tomato, curry spices, coconut milk",
+        "instructions": [
+            "Cook onion and tomato with spices",
+            "Add {main} and stir well",
+            "Pour coconut milk and simmer",
+            "Serve with rice or naan"
+        ],
+        "time_offset": +20
+    },
+    {
+        "name": "{main} Tacos",
+        "ingredients": "{main}, tortillas, salsa, lettuce, cheese",
+        "instructions": [
+            "Cook {main} with spices",
+            "Warm tortillas",
+            "Fill with {main}, salsa, lettuce, cheese",
+            "Serve with lime wedges"
+        ],
+        "time_offset": 0
+    },
+    {
+        "name": "Cheesy {main} Casserole",
+        "ingredients": "{main}, cheese, cream, breadcrumbs, herbs",
+        "instructions": [
+            "Preheat oven to 180°C",
+            "Mix {main} with cream and cheese",
+            "Top with breadcrumbs",
+            "Bake for 25 minutes"
+        ],
+        "time_offset": +25
+    },
+    {
+        "name": "{main} {secondary} Salad Bowl",
+        "ingredients": "{main}, {secondary}, lettuce, olive oil, dressing",
+        "instructions": [
+            "Chop {main} and {secondary}",
+            "Mix with lettuce and dressing",
+            "Top with olive oil",
+            "Serve chilled"
+        ],
+        "time_offset": -5
+    },
+    {
+        "name": "Golden {main} Omelette",
+        "ingredients": "Eggs, {main}, onion, spices, cheese",
+        "instructions": [
+            "Beat eggs with spices",
+            "Add {main} and onion",
+            "Cook in pan until golden",
+            "Sprinkle cheese and fold"
+        ],
+        "time_offset": -5
+    }
+    # 👉 Keep adding until you reach 50+ recipes
+]
+
+# ---------------------- STREAMLIT UI ----------------------
+with st.container():
     st.subheader("🥘 Leftover Recipe Generator")
     st.markdown("Transform your leftover ingredients into delicious meals!")
-    
+
     c1, c2 = st.columns([2,1])
     with c1:
         ingredients = st.text_input("📝 Ingredients (comma-separated)", key="rec_ing", 
@@ -137,101 +256,70 @@ with tabs[1]:
         diet = st.selectbox("Diet preference", ["Any", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free"])
         time_limit = st.slider("Max cooking time (minutes)", 10, 120, 30)
         difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Easy")
-        
+
         if st.button("🔍 Generate Recipes", key="rec_btn", use_container_width=True):
             if ingredients.strip():
                 items = [x.strip() for x in ingredients.split(",") if x.strip()]
-                if items:
+                if not items:
+                    st.warning("Please enter at least one valid ingredient.")
+                else:
                     base = items[:3] if len(items) >= 3 else items + ["veggies", "spices"][len(items):]
                     tag = "" if diet=="Any" else f" · {diet}"
-                    
+
                     st.success("🎉 Here are your personalized recipe suggestions!")
-                    
-                    # Recipe 1
-                    with st.expander(f"{base[0].title()} Quick Stir‑Fry", expanded=True):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base[:2])}, soy sauce, garlic, oil  
-                        **Instructions:** 
-                        1. Heat oil in a pan
-                        2. Add garlic and sauté
-                        3. Add {base[0]} and stir fry
-                        4. Add soy sauce and serve hot
-                        
-                        **Time:** {time_limit-10} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_1"):
-                            st.session_state.favorite_recipes.append({
-                                "name": f"{base[0].title()} Quick Stir‑Fry",
-                                "ingredients": f"{', '.join(base[:2])}, soy sauce, garlic, oil",
-                                "instructions": "1. Heat oil in a pan\n2. Add garlic and sauté\n3. Add main ingredient and stir fry\n4. Add soy sauce and serve hot",
-                                "time": f"{time_limit-10} minutes",
-                                "difficulty": difficulty
-                            })
-                            st.success("Recipe saved to favorites!")
-                    
-                    # Recipe 2
-                    with st.expander(f"{base[0].title()} {base[1].title()} Wraps"):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base[:2])}, tortillas, spices, yogurt  
-                        **Instructions:** 
-                        1. Cook {base[0]} and {base[1]} with spices
-                        2. Warm tortillas
-                        3. Fill tortillas with mixture
-                        4. Add yogurt and roll up
-                        
-                        **Time:** {time_limit} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_2"):
-                            st.session_state.favorite_recipes.append({
-                                "name": f"{base[0].title()} {base[1].title()} Wraps",
-                                "ingredients": f"{', '.join(base[:2])}, tortillas, spices, yogurt",
-                                "instructions": "1. Cook main ingredients with spices\n2. Warm tortillas\n3. Fill tortillas with mixture\n4. Add yogurt and roll up",
-                                "time": f"{time_limit} minutes",
-                                "difficulty": difficulty
-                            })
-                            st.success("Recipe saved to favorites!")
-                    
-                    # Recipe 3
-                    with st.expander(f"Hearty {base[0].title()} Soup"):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base)}, broth, herbs, potatoes  
-                        **Instructions:** 
-                        1. Sauté {base[0]} and other veggies
-                        2. Add broth and potatoes
-                        3. Simmer for 20 minutes
-                        4. Add herbs and serve
-                        
-                        **Time:** {time_limit+5} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_3"):
-                            st.session_state.favorite_recipes.append({
-                                "name": f"Hearty {base[0].title()} Soup",
-                                "ingredients": f"{', '.join(base)}, broth, herbs, potatoes",
-                                "instructions": "1. Sauté main ingredients and other veggies\n2. Add broth and potatoes\n3. Simmer for 20 minutes\n4. Add herbs and serve",
-                                "time": f"{time_limit+5} minutes",
-                                "difficulty": difficulty
-                            })
-                            st.success("Recipe saved to favorites!")
-                else:
-                    st.warning("Please enter at least one valid ingredient.")
-            else:
-                st.warning("Please enter at least one ingredient.")
-    
+
+                    # Generate all recipes dynamically
+                    for i, recipe in enumerate(RECIPE_TEMPLATES, start=1):
+                        name = recipe["name"].format(
+                            main=base[0].title(),
+                            secondary=base[1].title() if len(base) > 1 else "Veggies",
+                            extra=base[2].title() if len(base) > 2 else "Spices"
+                        )
+                        ingredients_text = recipe["ingredients"].format(
+                            main=base[0], 
+                            secondary=base[1] if len(base) > 1 else "veggies",
+                            extra=base[2] if len(base) > 2 else "spices"
+                        )
+                        instructions_text = "\n".join(
+                            [f"{j+1}. {step.format(main=base[0], secondary=base[1] if len(base)>1 else 'veggies')}" 
+                             for j, step in enumerate(recipe["instructions"])]
+                        )
+
+                        with st.expander(f"{name}", expanded=(i==1)):
+                            st.markdown(f"""
+                            **Ingredients:** {ingredients_text}  
+                            **Instructions:**  
+                            {instructions_text}
+
+                            **Time:** {time_limit + recipe['time_offset']} minutes  
+                            **Difficulty:** {difficulty}{tag}
+                            """)
+                            if st.button("⭐ Save Recipe", key=f"save_{i}"):
+                                st.session_state.favorite_recipes.append({
+                                    "name": name,
+                                    "ingredients": ingredients_text,
+                                    "instructions": instructions_text,
+                                    "time": f"{time_limit + recipe['time_offset']} minutes",
+                                    "difficulty": difficulty
+                                })
+                                st.success("Recipe saved to favorites!")
+
     with c2:
         st.info("💡 **Tips for reducing food waste:**")
         st.markdown("""
-        - Store leftovers properly in airtight containers
-        - Use older ingredients first when cooking
-        - Freeze leftovers you won't use immediately
-        - Understand date labels (best before vs use by)
+        - Store leftovers properly in airtight containers  
+        - Use older ingredients first when cooking  
+        - Freeze leftovers you won't use immediately  
+        - Understand date labels (best before vs use by)  
         """)
-        
+
         st.info("🔮 **Coming Soon:**")
         st.markdown("""
-        - API integration with Spoonacular for real recipes
-        - Nutritional information
-        - Step-by-step cooking instructions
+        - API integration with Spoonacular for real recipes  
+        - Nutritional information  
+        - Step-by-step cooking instructions  
         """)
+
 
 # ---------------------- PLANNER ----------------------
 with tabs[2]:
