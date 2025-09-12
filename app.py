@@ -153,7 +153,7 @@ tabs = st.tabs(["🏠 Home", "🥘 Recipes", "📅 Planner", "🤝 Sharing", "�
 with tabs[0]:
     st.markdown("### Welcome back to FoodWise")
     st.write("Features: Leftover recipe generator, weekly planner, favorites, waste tracker, and a persistent Restaurant↔NGO orders system.")
-    st.write("To share orders across devices: host this app on one server (Streamlit Cloud / Render / Railway) so both laptops use the same `orders.db` on the server.")
+    st.write("To share orders across devices: host this app on one server (Streamlit Cloud / Render / Railway) so both laptops use the same orders.db on the server.")
 
 # ---------------------- RECIPES ----------------------
 with tabs[1]:
@@ -171,7 +171,7 @@ with tabs[1]:
             tag = "" if diet == "Any" else f" · {diet}"
             st.success("Suggested recipes:")
             with st.expander(f"{base[0].title()} Stir-Fry", expanded=True):
-                st.markdown(f"**Ingredients:** {', '.join(base[:2])}, soy sauce, garlic, oil  \n**Time:** {max(5, max_time-10)} min · **{difficulty}{tag}**")
+                st.markdown(f"Ingredients: {', '.join(base[:2])}, soy sauce, garlic, oil  \n*Time:* {max(5, max_time-10)} min · {difficulty}{tag}")
                 if st.button("⭐ Save Recipe", key="save_recipe_1"):
                     st.session_state.favorite_recipes.append({
                         "name": f"{base[0].title()} Stir-Fry",
@@ -182,7 +182,7 @@ with tabs[1]:
                     })
                     st.success("Saved to favorites.")
             with st.expander(f"{base[0].title()} {base[1].title()} Wraps"):
-                st.markdown(f"**Ingredients:** {', '.join(base[:2])}, tortillas, yogurt  \n**Time:** {max_time} min · **{difficulty}{tag}**")
+                st.markdown(f"Ingredients: {', '.join(base[:2])}, tortillas, yogurt  \n*Time:* {max_time} min · {difficulty}{tag}")
                 if st.button("⭐ Save Recipe", key="save_recipe_2"):
                     st.session_state.favorite_recipes.append({
                         "name": f"{base[0].title()} {base[1].title()} Wraps",
@@ -193,7 +193,7 @@ with tabs[1]:
                     })
                     st.success("Saved to favorites.")
             with st.expander(f"Hearty {base[0].title()} Soup"):
-                st.markdown(f"**Ingredients:** {', '.join(base)}, broth  \n**Time:** {max_time+10} min · **{difficulty}{tag}**")
+                st.markdown(f"Ingredients: {', '.join(base)}, broth  \n*Time:* {max_time+10} min · {difficulty}{tag}")
                 if st.button("⭐ Save Recipe", key="save_recipe_3"):
                     st.session_state.favorite_recipes.append({
                         "name": f"Hearty {base[0].title()} Soup",
@@ -211,7 +211,7 @@ with tabs[2]:
     cols = st.columns(7)
     for i, day in enumerate(days):
         with cols[i]:
-            st.markdown(f"**{day}**")
+            st.markdown(f"{day}")
             for meal in ["Breakfast", "Lunch", "Dinner"]:
                 st.session_state.meal_plan[day][meal] = st.text_input(f"{meal}", value=st.session_state.meal_plan[day][meal], key=f"{day}_{meal}")
     st.markdown("### Quantity Calculator")
@@ -383,6 +383,66 @@ with tabs[7]:
         else:
             posted_by = st.session_state.current_user
             rest_display = st.session_state.users.get(posted_by, {}).get("display", posted_by)
+
+            # ------------------- NEW SECTION: show my existing orders -------------------
+            my_orders = fetch_orders("username=?", (posted_by,))
+            if my_orders:
+                st.markdown("### My Posted Orders")
+                for row in my_orders:
+                    # columns indices:
+                    # 0:id,1:restaurant,2:username,3:item,4:qty,5:pickup,6:location,7:contact,8:notes,9:price,10:status,11:posted_on,12:confirmed_by,13:confirmed_on,14:ngo_contact,15:ngo_location
+                    oid = row[0]
+                    restaurant_name = row[1]
+                    username = row[2]
+                    item = row[3]
+                    qty = row[4]
+                    pickup = row[5]
+                    location = row[6]
+                    contact = row[7]
+                    notes = row[8]
+                    price = row[9]
+                    status = row[10]
+                    posted_on = row[11]
+                    confirmed_by = row[12] if len(row) > 12 else ""
+                    confirmed_on = row[13] if len(row) > 13 else ""
+                    ngo_contact = row[14] if len(row) > 14 else ""
+                    ngo_location = row[15] if len(row) > 15 else ""
+
+                    with st.expander(f"{item} — {status}", expanded=False):
+                        st.write(f"Qty: {qty}")
+                        st.write(f"Pickup: {pickup}")
+                        st.write(f"Location: {location}")
+                        st.write(f"Contact: {contact}")
+                        st.write(f"Price: {price}")
+                        st.write(f"Posted on: {posted_on}")
+                        if notes:
+                            st.info(f"Notes: {notes}")
+                        st.write(f"Status: {status}")
+                        if confirmed_by:
+                            st.success(f"✅ Confirmed by {confirmed_by} on {confirmed_on}")
+                            if ngo_contact:
+                                st.write(f"📞 NGO Contact: {ngo_contact}")
+                            if ngo_location:
+                                st.write(f"📍 NGO Location: {ngo_location}")
+                        c1, c2 = st.columns([1,1])
+                        with c1:
+                            if st.button("🗑 Remove Order", key=f"remove_order_{oid}"):
+                                remove_order(oid)
+                                st.success("Order removed.")
+                                st.experimental_rerun()
+                        with c2:
+                            # allow restaurant to mark unavailable if desired
+                            if st.button("❌ Mark Unavailable", key=f"rest_unavail_{oid}"):
+                                if status != "Unavailable":
+                                    update_order_status(oid, "Unavailable")
+                                    st.success("Marked unavailable.")
+                                else:
+                                    st.info("Already unavailable.")
+            else:
+                st.info("No orders posted yet.")
+            # ------------------- END NEW SECTION -------------------
+
+            # -------- Existing Post form (unchanged) --------
             ro_item = st.text_input("Item / details", key="ro_item", value="Cooked meals - 20 boxes")
             ro_qty = st.text_input("Quantity / units", key="ro_qty", value="20 boxes")
             ro_pickup = st.text_input("Pickup time / window", key="ro_pickup", value="Today 6-7 PM")
@@ -449,19 +509,19 @@ with tabs[7]:
                     ngo_location = row[15] if len(row) > 15 else ""
 
                     with st.expander(f"{item} — {restaurant} ({status})", expanded=False):
-                        st.write(f"**Qty:** {qty}")
-                        st.write(f"**Pickup:** {pickup}")
-                        st.write(f"**Contact:** {contact}")
-                        st.write(f"**Price:** {price}")
-                        st.write(f"**Posted on:** {posted_on}")
+                        st.write(f"Qty: {qty}")
+                        st.write(f"Pickup: {pickup}")
+                        st.write(f"Contact: {contact}")
+                        st.write(f"Price: {price}")
+                        st.write(f"Posted on: {posted_on}")
                         if notes:
                             st.info(f"Notes: {notes}")
                         if confirmed_by:
-                            st.write(f"**Confirmed by:** {confirmed_by} on {confirmed_on}")
+                            st.write(f"Confirmed by: {confirmed_by} on {confirmed_on}")
                             if ngo_contact:
-                                st.write(f"**NGO Contact:** {ngo_contact}")
+                                st.write(f"NGO Contact: {ngo_contact}")
                             if ngo_location:
-                                st.write(f"**NGO Location:** {ngo_location}")
+                                st.write(f"NGO Location: {ngo_location}")
 
                         # Map link + embed
                         try:
@@ -509,8 +569,8 @@ with tabs[7]:
 st.markdown("---")
 if st.session_state.current_user:
     display = st.session_state.users.get(st.session_state.current_user, {}).get("display", st.session_state.current_user)
-    st.write(f"Logged in as **{display}** · role: **{st.session_state.current_role}**")
+    st.write(f"Logged in as {display} · role: {st.session_state.current_role}")
 else:
     st.write("Not logged in.")
 
-st.markdown("<div style='text-align:center; color:#666; padding:8px 0;'>FoodWise ♻️ · Orders persisted to SQLite (`orders.db`). Host on a server to share between devices.</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#666; padding:8px 0;'>FoodWise ♻ · Orders persisted to SQLite (orders.db). Host on a server to share between devices.</div>", unsafe_allow_html=True)
