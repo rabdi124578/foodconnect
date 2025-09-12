@@ -379,6 +379,18 @@ with tabs[6]:
                     with cols[2]:
                         if st.button("🗑️ Remove", key=f"remove_order_{i}"):
                             st.session_state.restaurant_orders.pop(i)
+                            if "clear_triggered" not in st.session_state:
+    st.session_state.clear_triggered = False
+
+if st.button("Clear All"):
+    st.session_state.favorite_recipes = []
+    st.session_state.clear_triggered = True
+    st.rerun()
+
+if st.session_state.clear_triggered:
+    st.session_state.clear_triggered = False
+    st.success("All favorites cleared ✅")
+
             st.rerun()
         else:
             st.info("No restaurant orders yet.")
