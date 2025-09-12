@@ -379,7 +379,7 @@ with tabs[6]:
                     with cols[2]:
                         if st.button("🗑️ Remove", key=f"remove_order_{i}"):
                             st.session_state.restaurant_orders.pop(i)
-                            st.experimental_rerun()
+                           st.rerun()
         else:
             st.info("No restaurant orders yet.")
 
