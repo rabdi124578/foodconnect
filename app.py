@@ -1,9 +1,8 @@
-# (Start of your original file — keep everything above unchanged)
+# app.py
 import streamlit as st
 import pandas as pd
-import math
 from datetime import datetime, timedelta
-from streamlit.components.v1 import html  # added to embed Google Maps iframe
+from streamlit.components.v1 import html
 
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
 
@@ -16,10 +15,11 @@ if 'meal_plan' not in st.session_state:
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     meals = ["Breakfast", "Lunch", "Dinner"]
     st.session_state.meal_plan = {day: {meal: "" for meal in meals} for day in days}
-
-# ----- NEW: restaurant orders storage (minimal addition) -----
 if 'restaurant_orders' not in st.session_state:
-    st.session_state.restaurant_orders = []  # each item: dict with keys below
+    st.session_state.restaurant_orders = []
+if 'waste_log' not in st.session_state:
+    # each entry: {"item","qty","units","reason","date"}
+    st.session_state.waste_log = []
 
 # ---------------------- THEME / STYLE ----------------------
 st.markdown(
@@ -30,10 +30,10 @@ st.markdown(
     .foodwise-hero p { font-size:1.05rem; opacity:0.9; }
     .stButton>button {
         background:#FF6F61; color:white; border-radius:12px; padding:0.6rem 1rem;
-        border:0; font-weight:600; transition: all 0.3s ease;
+        border:0; font-weight:600; transition: all 0.15s ease;
     }
     .stButton>button:hover {
-        background:#FF4A3C; transform: scale(1.05);
+        background:#FF4A3C; transform: scale(1.03);
     }
     .stTextInput>div>div>input, .stNumberInput>div>div>input, textarea {
         border:2px solid #22C55E; border-radius:10px;
@@ -56,369 +56,276 @@ st.markdown(
 # ---------------------- HEADER ----------------------
 st.markdown('<div class="foodwise-hero" style="text-align:center; padding: 10px 0 20px 0;">'
             '<h1>🍲 FoodWise</h1>'
-            '<h3>AI-Powered Food Waste Reduction & Sharing</h3>'
-            '<p>Turn leftovers into recipes, plan meals precisely, and share surplus with your community.</p>'
+            '<h3>AI-style Recipe Generator · Planner · Sharing · Waste Tracker</h3>'
+            '<p>Reduce food waste, help your community, and plan smarter meals.</p>'
             '</div>', unsafe_allow_html=True)
 
 # ---------------------- NAV TABS ----------------------
-# NOTE: added one extra tab "🏬 Restaurant Orders" only
-tabs = st.tabs(["🏠 Home", "🥘 Recipes", "📅 Planner", "🤝 Sharing Hub", "⭐ Favorites", "🏬 Restaurant Orders"])
+tabs = st.tabs(["🏠 Home", "🥘 Recipes", "📅 Planner", "🤝 Sharing Hub", "⭐ Favorites", "📉 Waste Tracker", "🏬 Restaurant Orders"])
 
 # ---------------------- HOME ----------------------
 with tabs[0]:
     st.markdown("### 🌟 Welcome to FoodWise!")
     st.markdown("""
     <div class="feature-card">
-    Reduce food waste, save money, and help your community by making the most of your food ingredients.
+    Make the most of your food: generate recipes from leftovers, plan meals, track waste, and connect restaurants with NGOs.
     </div>
     """, unsafe_allow_html=True)
-    
-    c1, c2 = st.columns([1,1])
+    c1, c2 = st.columns([1, 1])
     with c1:
-        st.subheader("Why FoodWise?")
-        st.write("- 1/3 of all food produced globally is wasted each year")
-        st.write("- The average family throws away ₹50,000 worth of food annually")
-        st.write("- FoodWise helps you reduce waste while enjoying delicious meals")
-        
-        st.subheader("Key Features")
-        st.markdown("• **Leftover Recipe Generator** - Transform ingredients into meals")
-        st.markdown("• **Smart Food Planner** - Plan meals and calculate portions")
-        st.markdown("• **Food Sharing Hub** - Share surplus with your community")
-        st.markdown("• **Favorite Recipes** - Save your go-to recipes")
-        
-        st.caption("Built with Streamlit · SQLite · Optional APIs (Spoonacular/Edamam, Maps)")
-    
+        st.subheader("Why this app?")
+        st.write("- Reduce food waste and save money")
+        st.write("- Share surplus with local NGOs")
+        st.write("- Plan portions so you cook just enough")
     with c2:
-        st.markdown("**🚀 Quick Start**")
-        ingredients_quick = st.text_input("Enter leftovers (comma-separated)", key="home_ing", 
-                                         placeholder="e.g., chicken, rice, carrots")
-        
+        st.subheader("Quick actions")
+        quick_ing = st.text_input("Quick ingredients (comma-separated)", key="quick_ing", placeholder="eg. rice, spinach, chicken")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Suggest Recipes", key="home_btn", use_container_width=True):
-                if ingredients_quick.strip():
-                    items = [x.strip() for x in ingredients_quick.split(",") if x.strip()]
+            if st.button("Suggest (Quick)"):
+                if quick_ing.strip():
+                    items = [x.strip() for x in quick_ing.split(",") if x.strip()]
                     if items:
                         base = items[:3] if len(items) >= 3 else items + ["veggies", "spices"][len(items):]
-                        st.success("Here are some ideas:")
-                        
-                        with st.expander("Recipe Suggestions", expanded=True):
-                            st.markdown(f"""
-                            <div class="recipe-card">
-                            <h4>🍳 {base[0].title()} Stir-Fry</h4>
-                            <p><strong>Ingredients:</strong> {', '.join(base[:2])}, soy sauce, garlic, oil</p>
-                            <p><strong>Time:</strong> 20 minutes | <strong>Difficulty:</strong> Easy</p>
-                            </div>
-                            
-                            <div class="recipe-card">
-                            <h4>🍚 {base[0].title()} & {base[1].title()} Fried Rice</h4>
-                            <p><strong>Ingredients:</strong> {', '.join(base)}, rice, eggs, scallions</p>
-                            <p><strong>Time:</strong> 25 minutes | <strong>Difficulty:</strong> Medium</p>
-                            </div>
-                            
-                            <div class="recipe-card">
-                            <h4>🍲 Hearty {base[0].title()} Soup</h4>
-                            <p><strong>Ingredients:</strong> {', '.join(base)}, broth, herbs, potatoes</p>
-                            <p><strong>Time:</strong> 35 minutes | <strong>Difficulty:</strong> Easy</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                        st.success("Quick suggestions:")
+                        with st.expander("Ideas", expanded=True):
+                            st.markdown(f"<div class='recipe-card'><h4>🍳 {base[0].title()} Stir-Fry</h4>"
+                                        f"<p><strong>Ingredients:</strong> {', '.join(base[:2])}, soy sauce, garlic, oil</p>"
+                                        f"</div>", unsafe_allow_html=True)
                     else:
-                        st.warning("Please enter at least one ingredient.")
+                        st.warning("Enter at least one ingredient.")
                 else:
-                    st.warning("Please enter at least one ingredient.")
-        
+                    st.warning("Enter at least one ingredient.")
         with col2:
-            if st.button("Clear Input", key="clear_btn", use_container_width=True):
-                st.session_state.home_ing = ""
-                st.experimental_rerun()
+            if st.button("Clear", key="clear_quick"):
+                st.session_state.quick_ing = ""
 
 # ---------------------- RECIPES ----------------------
 with tabs[1]:
     st.subheader("🥘 Leftover Recipe Generator")
-    st.markdown("Transform your leftover ingredients into delicious meals!")
-    
+    st.markdown("Enter your available ingredients and get simple, practical recipes.")
     c1, c2 = st.columns([2,1])
     with c1:
-        ingredients = st.text_input("📝 Ingredients (comma-separated)", key="rec_ing", 
-                                   placeholder="e.g., chicken, rice, carrots, potatoes")
+        ingredients = st.text_input("Ingredients (comma-separated)", key="rec_ing", placeholder="e.g., rice, carrot, eggs")
         diet = st.selectbox("Diet preference", ["Any", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free"])
-        time_limit = st.slider("Max cooking time (minutes)", 10, 120, 30)
+        max_time = st.slider("Max cooking time (minutes)", 10, 120, 30)
         difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Easy")
-        
-        if st.button("🔍 Generate Recipes", key="rec_btn", use_container_width=True):
+        if st.button("Generate Recipes"):
             if ingredients.strip():
                 items = [x.strip() for x in ingredients.split(",") if x.strip()]
-                if items:
+                if not items:
+                    st.warning("Please enter valid ingredients.")
+                else:
+                    # Deterministic heuristic recipe generator (works offline)
                     base = items[:3] if len(items) >= 3 else items + ["veggies", "spices"][len(items):]
-                    tag = "" if diet=="Any" else f" · {diet}"
-                    
-                    st.success("🎉 Here are your personalized recipe suggestions!")
-                    
-                    # Recipe 1
+                    tag = "" if diet == "Any" else f" · {diet}"
+                    st.success("Here are recipes based on your ingredients:")
+                    # Recipe cards
                     with st.expander(f"{base[0].title()} Quick Stir-Fry", expanded=True):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base[:2])}, soy sauce, garlic, oil  
-                        **Instructions:** 
-                        1. Heat oil in a pan
-                        2. Add garlic and sauté
-                        3. Add {base[0]} and stir fry
-                        4. Add soy sauce and serve hot
-                        
-                        **Time:** {time_limit-10} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_1"):
+                        st.markdown(f"**Ingredients:** {', '.join(base[:2])}, soy sauce, garlic, oil  \n"
+                                    f"**Time:** {max_time-10} minutes · **Difficulty:** {difficulty}{tag}")
+                        if st.button("⭐ Save Recipe", key="save_gen_1"):
                             st.session_state.favorite_recipes.append({
                                 "name": f"{base[0].title()} Quick Stir-Fry",
                                 "ingredients": f"{', '.join(base[:2])}, soy sauce, garlic, oil",
-                                "instructions": "1. Heat oil in a pan\n2. Add garlic and sauté\n3. Add main ingredient and stir fry\n4. Add soy sauce and serve hot",
-                                "time": f"{time_limit-10} minutes",
+                                "instructions": "1. Heat oil\n2. Sauté garlic\n3. Add main ingredient and stir-fry\n4. Add sauce and serve",
+                                "time": f"{max_time-10} mins",
                                 "difficulty": difficulty
                             })
-                            st.success("Recipe saved to favorites!")
-                    
-                    # Recipe 2
-                    with st.expander(f"{base[0].title()} {base[1].title()} Wraps"):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base[:2])}, tortillas, spices, yogurt  
-                        **Instructions:** 
-                        1. Cook {base[0]} and {base[1]} with spices
-                        2. Warm tortillas
-                        3. Fill tortillas with mixture
-                        4. Add yogurt and roll up
-                        
-                        **Time:** {time_limit} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_2"):
+                            st.success("Saved to favorites.")
+                    with st.expander(f"{base[0].title()} & {base[1].title()} Wraps"):
+                        st.markdown(f"**Ingredients:** {', '.join(base[:2])}, tortillas, yogurt/spread  \n"
+                                    f"**Time:** {max_time} minutes · **Difficulty:** {difficulty}{tag}")
+                        if st.button("⭐ Save Recipe", key="save_gen_2"):
                             st.session_state.favorite_recipes.append({
                                 "name": f"{base[0].title()} {base[1].title()} Wraps",
-                                "ingredients": f"{', '.join(base[:2])}, tortillas, spices, yogurt",
-                                "instructions": "1. Cook main ingredients with spices\n2. Warm tortillas\n3. Fill tortillas with mixture\n4. Add yogurt and roll up",
-                                "time": f"{time_limit} minutes",
+                                "ingredients": f"{', '.join(base[:2])}, tortillas, yogurt/spread",
+                                "instructions": "1. Cook main ingredients\n2. Warm tortillas\n3. Fill and roll",
+                                "time": f"{max_time} mins",
                                 "difficulty": difficulty
                             })
-                            st.success("Recipe saved to favorites!")
-                    
-                    # Recipe 3
+                            st.success("Saved to favorites.")
                     with st.expander(f"Hearty {base[0].title()} Soup"):
-                        st.markdown(f"""
-                        **Ingredients:** {', '.join(base)}, broth, herbs, potatoes  
-                        **Instructions:** 
-                        1. Sauté {base[0]} and other veggies
-                        2. Add broth and potatoes
-                        3. Simmer for 20 minutes
-                        4. Add herbs and serve
-                        
-                        **Time:** {time_limit+5} minutes · **Difficulty:** {difficulty}{tag}
-                        """)
-                        if st.button("⭐ Save Recipe", key="save_3"):
+                        st.markdown(f"**Ingredients:** {', '.join(base)}, broth, herbs  \n"
+                                    f"**Time:** {max_time+10} minutes · **Difficulty:** {difficulty}{tag}")
+                        if st.button("⭐ Save Recipe", key="save_gen_3"):
                             st.session_state.favorite_recipes.append({
                                 "name": f"Hearty {base[0].title()} Soup",
-                                "ingredients": f"{', '.join(base)}, broth, herbs, potatoes",
-                                "instructions": "1. Sauté main ingredients and other veggies\n2. Add broth and potatoes\n3. Simmer for 20 minutes\n4. Add herbs and serve",
-                                "time": f"{time_limit+5} minutes",
+                                "ingredients": f"{', '.join(base)}, broth, herbs",
+                                "instructions": "1. Sauté veggies\n2. Add broth and simmer\n3. Season & serve",
+                                "time": f"{max_time+10} mins",
                                 "difficulty": difficulty
                             })
-                            st.success("Recipe saved to favorites!")
-                else:
-                    st.warning("Please enter at least one valid ingredient.")
+                            st.success("Saved to favorites.")
             else:
-                st.warning("Please enter at least one ingredient.")
-    
+                st.warning("Please enter ingredients.")
     with c2:
-        st.info("💡 **Tips for reducing food waste:**")
-        st.markdown("""
-        - Store leftovers properly in airtight containers
-        - Use older ingredients first when cooking
-        - Freeze leftovers you won't use immediately
-        - Understand date labels (best before vs use by)
-        """)
-        
-        st.info("🔮 **Coming Soon:**")
-        st.markdown("""
-        - API integration with Spoonacular for real recipes
-        - Nutritional information
-        - Step-by-step cooking instructions
-        """)
+        st.info("Tips to reduce waste:")
+        st.write("- Use older ingredients first")
+        st.write("- Freeze leftovers")
+        st.write("- Plan weekly meals")
 
 # ---------------------- PLANNER ----------------------
 with tabs[2]:
     st.subheader("📅 Smart Food Planner")
-    st.caption("Estimate ingredient quantities based on number of people and plan your meals.")
-    
-    # Meal planning section
-    st.markdown("### 🍽️ Weekly Meal Planner")
-    
-    # Create a simple weekly planner
+    st.caption("Weekly planner and quantity calculator.")
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     meals = ["Breakfast", "Lunch", "Dinner"]
-    
     planner_cols = st.columns(7)
     for i, day in enumerate(days):
         with planner_cols[i]:
             st.markdown(f"**{day}**")
             for meal in meals:
                 st.session_state.meal_plan[day][meal] = st.text_input(
-                    f"{meal}", 
-                    value=st.session_state.meal_plan[day][meal],
-                    key=f"{day}_{meal}"
+                    f"{meal}", value=st.session_state.meal_plan[day][meal], key=f"{day}_{meal}"
                 )
-    
-    # Quantity calculator
     st.markdown("### 📊 Quantity Calculator")
     dish = st.text_input("Dish name", value="Veg Fried Rice")
     people = st.number_input("Number of people", 1, 100, 4, step=1)
-    
-    # Simple baseline per-person grams (demo values)
     baseline = {
-        "rice (g)": 90, "mixed veggies (g)": 120, "oil (tbsp)": 0.75, 
+        "rice (g)": 90, "mixed veggies (g)": 120, "oil (tbsp)": 0.75,
         "spices (tsp)": 1.0, "salt (tsp)": 0.5, "protein (g)": 100
     }
-    
-    if st.button("Calculate quantities", key="plan_btn", use_container_width=True):
+    if st.button("Calculate quantities"):
         rows = []
         for k, v in baseline.items():
             qty = v * people
             rows.append({"Ingredient": k, "Per Person": v, "Total Quantity": round(qty, 2)})
-        
         df = pd.DataFrame(rows)
         st.write(f"**Plan for:** {people} people · **Dish:** {dish}")
         st.dataframe(df, use_container_width=True)
-        
-        # Shopping list generator
-        st.download_button(
-            label="📥 Download Shopping List",
-            data=df.to_csv(index=False),
-            file_name="shopping_list.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-        
-        st.caption("Adjust baseline amounts as needed for your recipes.")
+        st.download_button("📥 Download Shopping List", df.to_csv(index=False), file_name="shopping_list.csv", mime="text/csv")
 
 # ---------------------- SHARING HUB ----------------------
 with tabs[3]:
     st.subheader("🤝 Share, Sell, or Donate Surplus")
     st.caption("Connect with your community to reduce food waste together")
-    
     mode = st.radio("I want to:", ["Donate", "Sell"], horizontal=True)
-    
     colA, colB = st.columns(2)
     with colA:
         item = st.text_input("Item name", value="Cooked rice (sealed)")
         qty = st.text_input("Quantity / units", value="2 boxes")
-        expiry = st.date_input("Expiry date", min_value=datetime.today(), 
-                              value=datetime.today() + timedelta(days=2))
+        expiry = st.date_input("Expiry date", min_value=datetime.today(), value=datetime.today() + timedelta(days=2))
         location = st.text_input("Location / Area", value="Campus Block A")
         contact = st.text_input("Contact (phone/email)", value="example@iitj.ac.in")
-    
     with colB:
-        dietary_info = st.multiselect("Dietary information", 
-                                     ["Vegetarian", "Vegan", "Gluten-free", "Dairy-free", "Contains nuts"])
+        dietary_info = st.multiselect("Dietary information", ["Vegetarian", "Vegan", "Gluten-free", "Dairy-free", "Contains nuts"])
         notes = st.text_area("Additional notes")
         price = None
         if mode == "Sell":
             price = st.number_input("Price (₹)", min_value=0, value=50, step=5)
-    
-    if st.button("Add listing", key="share_btn", use_container_width=True):
-        # Validate inputs
+    if st.button("Add listing"):
         if not all([item, qty, location, contact]):
-            st.error("Please fill in all required fields")
+            st.error("Please fill in name, qty, location, and contact.")
         else:
             st.session_state.shared_items.append({
-                "mode": mode, 
-                "item": item, 
-                "qty": qty, 
+                "mode": mode,
+                "item": item, "qty": qty,
                 "expiry": expiry.strftime("%Y-%m-%d"),
                 "dietary": ", ".join(dietary_info) if dietary_info else "None",
-                "location": location, 
-                "contact": contact, 
-                "price": price if mode=="Sell" else "Free", 
-                "notes": notes,
-                "date_posted": datetime.today().strftime("%Y-%m-%d")
+                "location": location, "contact": contact,
+                "price": price if mode == "Sell" else "Free",
+                "notes": notes, "date_posted": datetime.today().strftime("%Y-%m-%d")
             })
-            st.success("Listing added successfully! ✅")
-    
+            st.success("Listing added!")
     if st.session_state.shared_items:
         st.markdown("### 📋 Current Listings")
-        
-        for i, item in enumerate(st.session_state.shared_items):
-            with st.expander(f"{item['item']} - {item['location']} ({item['mode']})", expanded=i==0):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**Quantity:** {item['qty']}")
-                    st.write(f"**Expiry:** {item['expiry']}")
-                    st.write(f"**Dietary:** {item['dietary']}")
-                with col2:
-                    st.write(f"**Location:** {item['location']}")
-                    st.write(f"**Contact:** {item['contact']}")
-                    st.write(f"**Price:** {item['price']}")
-                
-                if item['notes']:
-                    st.info(f"**Notes:** {item['notes']}")
-                
-                if st.button("Remove Listing", key=f"remove_{i}"):
-                    st.session_state.shared_items.pop(i)
-                    st.experimental_rerun()
-        
-        st.caption("For production, save to a database (e.g., SQLite/Google Sheet) and add maps/filters.")
+        for i, it in enumerate(st.session_state.shared_items):
+            with st.expander(f"{it['item']} - {it['location']} ({it['mode']})", expanded=(i == 0)):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write(f"**Qty:** {it['qty']}")
+                    st.write(f"**Expiry:** {it['expiry']}")
+                    st.write(f"**Dietary:** {it['dietary']}")
+                with c2:
+                    st.write(f"**Location:** {it['location']}")
+                    st.write(f"**Contact:** {it['contact']}")
+                    st.write(f"**Price:** {it['price']}")
+                if it['notes']:
+                    st.info(f"Notes: {it['notes']}")
+                cols = st.columns([1,1])
+                with cols[0]:
+                    if st.button("🗺️ Show on Maps", key=f"maps_shared_{i}"):
+                        maps_q = it['location'].replace(" ", "+")
+                        maps_link = f"https://www.google.com/maps/search/?api=1&query={maps_q}"
+                        st.write(f"[Open in Google Maps]({maps_link})")
+                with cols[1]:
+                    if st.button("Remove", key=f"remove_shared_{i}"):
+                        st.session_state.shared_items.pop(i)
+                        st.experimental_rerun()
     else:
-        st.info("No listings yet. Add one above to get started!")
+        st.info("No shared items yet.")
 
 # ---------------------- FAVORITES ----------------------
 with tabs[4]:
     st.subheader("⭐ Favorite Recipes")
-    
     if st.session_state.favorite_recipes:
-        st.success("Your saved recipes:")
-        
-        for i, recipe in enumerate(st.session_state.favorite_recipes):
-            with st.expander(f"{recipe['name']} - {recipe['time']} - {recipe['difficulty']}", expanded=i==0):
-                st.write(f"**Ingredients:** {recipe['ingredients']}")
-                st.write(f"**Instructions:**")
-                st.write(recipe['instructions'].replace('\n', '  \n'))
-                
-                if st.button("Remove from Favorites", key=f"remove_recipe_{i}"):
-                    st.session_state.favorite_recipes.pop(i)
-                    st.experimental_rerun()
+        for i, r in enumerate(st.session_state.favorite_recipes):
+            with st.expander(f"{r['name']} — {r.get('time','N/A')} — {r.get('difficulty','')}", expanded=(i == 0)):
+                st.write(f"**Ingredients:** {r['ingredients']}")
+                st.write("**Instructions:**")
+                st.write(r['instructions'].replace("\n", "  \n"))
+                cols = st.columns(2)
+                with cols[0]:
+                    if st.button("Remove", key=f"remove_fav_{i}"):
+                        st.session_state.favorite_recipes.pop(i)
+                        st.experimental_rerun()
+                with cols[1]:
+                    st.download_button("📥 Export recipe (txt)", data=f"Name: {r['name']}\nIngredients: {r['ingredients']}\nInstructions:\n{r['instructions']}", file_name=f"{r['name']}.txt")
     else:
-        st.info("You haven't saved any recipes yet. Generate some recipes and click the ⭐ button to save them!")
-        
-        # Add some sample recipes to get started
-        with st.expander("View sample recipes"):
-            st.markdown("""
-            **🍳 Veggie Stir-Fry**  
-            **Ingredients:** mixed veggies, soy sauce, garlic, oil  
-            **Instructions:**  
-            1. Heat oil in a pan  
-            2. Add garlic and sauté  
-            3. Add veggies and stir fry  
-            4. Add soy sauce and serve hot  
-            
-            **Time:** 20 minutes · **Difficulty:** Easy
-            """)
+        st.info("No favorites yet — save generated recipes using the ⭐ buttons.")
 
-# ---------------------- NEW: RESTAURANT ORDERS (minimal new tab) ----------------------
+# ---------------------- WASTE TRACKER ----------------------
 with tabs[5]:
+    st.subheader("📉 Food Waste Tracker")
+    st.markdown("Log food you throw away so you can learn and reduce waste over time.")
+    w_col1, w_col2 = st.columns(2)
+    with w_col1:
+        w_item = st.text_input("Item name", key="w_item", value="Cooked rice")
+        w_qty = st.number_input("Quantity", min_value=0.0, value=1.0, step=0.1, format="%.2f")
+        w_units = st.selectbox("Units", ["kg", "g", "boxes", "units"], index=1)
+    with w_col2:
+        w_reason = st.selectbox("Reason", ["Overcooked", "Forgotten", "Spoiled", "Leftover not used", "Other"])
+        w_date = st.date_input("Date", value=datetime.today())
+        if st.button("Log waste"):
+            if not w_item.strip() or w_qty <= 0:
+                st.error("Enter valid item and quantity.")
+            else:
+                st.session_state.waste_log.append({
+                    "item": w_item.strip(), "qty": w_qty, "units": w_units,
+                    "reason": w_reason, "date": w_date.strftime("%Y-%m-%d")
+                })
+                st.success("Logged.")
+    if st.session_state.waste_log:
+        dfw = pd.DataFrame(st.session_state.waste_log)
+        st.markdown("### Recent waste logs")
+        st.dataframe(dfw.sort_values("date", ascending=False), use_container_width=True)
+        # Simple aggregate: counts per reason
+        reason_counts = dfw.groupby("reason")["qty"].sum().reset_index()
+        st.markdown("### Waste by reason (total quantity)")
+        st.bar_chart(data=reason_counts.set_index("reason"))
+        st.download_button("📥 Export waste log (CSV)", dfw.to_csv(index=False), file_name="waste_log.csv")
+    else:
+        st.info("No waste logged yet. Start logging to track patterns.")
+
+# ---------------------- RESTAURANT ORDERS ----------------------
+with tabs[6]:
     st.subheader("🏬 Restaurant Orders → NGO Confirmation")
-    st.markdown("Restaurants can post surplus orders here. NGOs can view, confirm, and view the restaurant location on Google Maps.")
-    
+    st.markdown("Restaurants post surplus; NGOs view, confirm, and see location on map.")
     colL, colR = st.columns(2)
     with colL:
         st.markdown("### Restaurant: Post an order")
         r_name = st.text_input("Restaurant name", key="r_name", value="My Restaurant")
         r_item = st.text_input("Item / Order details", key="r_item", value="Cooked meals - 20 boxes")
         r_qty = st.text_input("Quantity / units", key="r_qty", value="20 boxes")
-        r_pickup_by = st.text_input("Pickup time / window (e.g., Today 6-7 PM)", key="r_pickup", value="Today 6-7 PM")
-        # Location: allow address or "lat,lng"
-        r_location = st.text_input("Location (address or 'lat,lng')", key="r_location", 
-                                   value="Campus Block A, Jaipur")
+        r_pickup_by = st.text_input("Pickup time / window", key="r_pickup", value="Today 6-7 PM")
+        r_location = st.text_input("Location (address or 'lat,lng')", key="r_location", value="Campus Block A, Jaipur")
         r_contact = st.text_input("Contact (phone/email)", key="r_contact", value="restro@example.com")
         r_notes = st.text_area("Additional notes", key="r_notes")
-        r_price = st.number_input("Suggested price (₹) — optional, 0 for free", min_value=0, value=0, step=5, key="r_price")
-        
-        if st.button("📤 Post Order", key="post_order_btn", use_container_width=True):
+        r_price = st.number_input("Suggested price (₹) — optional", min_value=0, value=0, step=5, key="r_price")
+        if st.button("📤 Post Order"):
             if not all([r_name.strip(), r_item.strip(), r_location.strip(), r_contact.strip()]):
-                st.error("Please fill name, item, location, and contact.")
+                st.error("Please fill required fields.")
             else:
                 st.session_state.restaurant_orders.append({
                     "restaurant": r_name.strip(),
@@ -428,34 +335,27 @@ with tabs[5]:
                     "location": r_location.strip(),
                     "contact": r_contact.strip(),
                     "notes": r_notes.strip(),
-                    "price": r_price if r_price>0 else "Free",
+                    "price": r_price if r_price > 0 else "Free",
                     "status": "Available",
                     "date_posted": datetime.today().strftime("%Y-%m-%d")
                 })
-                st.success("Order posted. NGOs can now see & confirm it.")
-    
+                st.success("Order posted.")
     with colR:
-        st.markdown("### NGO: View & Confirm orders")
+        st.markdown("### NGO: View & Confirm")
         if st.session_state.restaurant_orders:
             for i, order in enumerate(st.session_state.restaurant_orders):
-                with st.expander(f"{order['item']} — {order['restaurant']} ({order['status']})", expanded=(i==0)):
-                    st.write(f"**Quantity:** {order['qty']}")
+                with st.expander(f"{order['item']} — {order['restaurant']} ({order['status']})", expanded=(i == 0)):
+                    st.write(f"**Qty:** {order['qty']}")
                     st.write(f"**Pickup by:** {order['pickup_by']}")
                     st.write(f"**Contact:** {order['contact']}")
                     st.write(f"**Price:** {order['price']}")
                     if order['notes']:
                         st.info(f"Notes: {order['notes']}")
                     st.write(f"**Posted on:** {order['date_posted']}")
-                    
-                    # Show quick Google Maps link and embedded map
-                    # NOTE: location can be address or "lat,lng"
-                    maps_query = order['location'].replace(' ', '+')
+                    maps_query = order['location'].replace(" ", "+")
                     maps_embed_url = f"https://www.google.com/maps?q={maps_query}&output=embed"
                     maps_link = f"https://www.google.com/maps/search/?api=1&query={maps_query}"
-                    
                     st.markdown(f"[Open in Google Maps]({maps_link})")
-                    
-                    # Embed map iframe (works with simple addresses or lat,lng)
                     iframe_html = f"""
                     <iframe
                       src="{maps_embed_url}"
@@ -463,18 +363,17 @@ with tabs[5]:
                     </iframe>
                     """
                     html(iframe_html, height=320)
-                    
                     cols = st.columns([1,1,1])
                     with cols[0]:
-                        if st.button("✅ Confirm (NGO pick-up)", key=f"confirm_order_{i}"):
+                        if st.button("✅ Confirm (NGO pick-up)", key=f"confirm_{i}"):
                             if order['status'] == "Available":
                                 st.session_state.restaurant_orders[i]['status'] = "Confirmed by NGO"
-                                st.success("Order confirmed. Please contact restaurant for pickup.")
+                                st.success("Confirmed — contact restaurant for pickup.")
                                 st.experimental_rerun()
                             else:
-                                st.warning("This order is already confirmed.")
+                                st.warning("Already confirmed/unavailable.")
                     with cols[1]:
-                        if st.button("❌ Mark unavailable", key=f"unavailable_order_{i}"):
+                        if st.button("❌ Mark unavailable", key=f"unavail_{i}"):
                             st.session_state.restaurant_orders[i]['status'] = "Unavailable"
                             st.experimental_rerun()
                     with cols[2]:
@@ -482,10 +381,8 @@ with tabs[5]:
                             st.session_state.restaurant_orders.pop(i)
                             st.experimental_rerun()
         else:
-            st.info("No restaurant orders posted yet. Restaurants can post on the left.")
+            st.info("No restaurant orders yet.")
 
 # ---------------------- FOOTER ----------------------
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>"
-            "FoodWise ♻️ · Reduce Food Waste · Help Your Community · Save Money"
-            "</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#666;'>FoodWise ♻️ · Reduce Food Waste · Help Your Community · Save Money</div>", unsafe_allow_html=True)
