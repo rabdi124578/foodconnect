@@ -1,4 +1,4 @@
-# app.py - FoodWise (merged) with SQLite-backed Restaurant <-> NGO orders
+# app.py - FoodWise (final, corrected)
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -7,18 +7,16 @@ from streamlit.components.v1 import html
 
 # ---------------------- CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
-
-DB_PATH = "orders.db"  # make sure app has write permission to current folder
+DB_PATH = "orders.db"
 
 # ---------------------- DATABASE HELPERS ----------------------
 def get_conn():
-    # allow multithreaded access when running Streamlit
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def init_db():
     conn = get_conn()
     c = conn.cursor()
-    # orders table persists orders from restaurants
+    # Create table with columns for NGO info as well
     c.execute("""
     CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,9 +32,26 @@ def init_db():
         status TEXT,
         posted_on TEXT,
         confirmed_by TEXT,
-        confirmed_on TEXT
+        confirmed_on TEXT,
+        ngo_contact TEXT,
+        ngo_location TEXT
     )
     """)
+    conn.commit()
+
+    # Ensure extra columns exist (migration-friendly)
+    c.execute("PRAGMA table_info(orders)")
+    cols = [r[1] for r in c.fetchall()]
+    needed = {
+        "confirmed_by": "TEXT",
+        "confirmed_on": "TEXT",
+        "ngo_contact": "TEXT",
+        "ngo_location": "TEXT"
+    }
+    for col, coltype in needed.items():
+        if col not in cols:
+            # add missing column
+            c.execute(f"ALTER TABLE orders ADD COLUMN {col} {coltype}")
     conn.commit()
     conn.close()
 
@@ -65,13 +80,15 @@ def fetch_orders(filter_clause=None, params=()):
     conn.close()
     return rows
 
-def update_order_status(order_id, new_status, confirmed_by=None):
+def update_order_status(order_id, new_status, confirmed_by=None, ngo_contact=None, ngo_location=None):
     conn = get_conn()
     c = conn.cursor()
-    if confirmed_by:
+    if confirmed_by or ngo_contact or ngo_location:
         c.execute("""
-            UPDATE orders SET status=?, confirmed_by=?, confirmed_on=? WHERE id=?
-        """, (new_status, confirmed_by, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), order_id))
+            UPDATE orders
+            SET status=?, confirmed_by=?, confirmed_on=?, ngo_contact=?, ngo_location=?
+            WHERE id=?
+        """, (new_status, confirmed_by or "", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ngo_contact or "", ngo_location or "", order_id))
     else:
         c.execute("UPDATE orders SET status=? WHERE id=?", (new_status, order_id))
     conn.commit()
@@ -84,37 +101,45 @@ def remove_order(order_id):
     conn.commit()
     conn.close()
 
-# initialize DB (create table if not exists)
+# initialize DB
 init_db()
 
 # ---------------------- SESSION / IN-MEMORY USERS ----------------------
-# Orders are in SQLite. Users are demo in-memory (you can extend to DB later).
 if 'users' not in st.session_state:
     st.session_state.users = {
-        "restro1": {"password": "restro123", "role": "restaurant", "display": "Restro One"},
-        "ngo1": {"password": "ngo123", "role": "ngo", "display": "Helping NGO"},
+        # demo users: username -> {password, role, display, contact, location}
+        "restro1": {"password": "restro123", "role": "restaurant", "display": "Restro One", "contact": "9876500000", "location": "Campus Block A"},
+        "restro2": {"password": "restro234", "role": "restaurant", "display": "Tasty Corner", "contact": "9876501111", "location": "Block B"},
+        "ngo1": {"password": "ngo123", "role": "ngo", "display": "Helping NGO", "contact": "9998800000", "location": "NGO Center"},
+        "ngo2": {"password": "ngo234", "role": "ngo", "display": "Care Foundation", "contact": "9998801111", "location": "Welfare Hub"},
     }
 
 if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 if 'current_role' not in st.session_state:
     st.session_state.current_role = None
-
-# flags to show one-time messages (avoid loops)
 if 'msg_flag' not in st.session_state:
     st.session_state.msg_flag = None
+if 'favorite_recipes' not in st.session_state:
+    st.session_state.favorite_recipes = []
+if 'shared_items' not in st.session_state:
+    st.session_state.shared_items = []
+if 'waste_log' not in st.session_state:
+    st.session_state.waste_log = []
+if 'meal_plan' not in st.session_state:
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    meals = ["Breakfast", "Lunch", "Dinner"]
+    st.session_state.meal_plan = {day: {meal: "" for meal in meals} for day in days}
 
 # ---------------------- STYLES & HEADER ----------------------
-st.markdown(
-    """
+st.markdown("""
     <style>
     .foodwise-hero h1 { color:#FF6F61; font-size:2.4rem; margin-bottom:0; }
     .foodwise-hero h3 { color:#22C55E; font-weight:600; margin-top:0.15rem; }
     .stButton>button { background:#FF6F61; color:white; border-radius:10px; padding:0.45rem 0.8rem; border:0; }
     .recipe-card { border:1px solid #E2E8F0; border-radius:10px; padding:0.8rem; margin-bottom:0.9rem; }
     </style>
-    """, unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 st.markdown('<div class="foodwise-hero" style="text-align:center; padding:8px 0 12px 0;">'
             '<h1>🍲 FoodWise</h1>'
@@ -133,7 +158,6 @@ with tabs[0]:
 # ---------------------- RECIPES ----------------------
 with tabs[1]:
     st.header("Leftover Recipe Generator")
-    st.write("Deterministic recipe generator — works offline.")
     ingredients = st.text_input("Ingredients (comma-separated)", key="rec_ing", placeholder="e.g., rice, carrot, egg")
     diet = st.selectbox("Diet preference", ["Any", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free"])
     max_time = st.slider("Max cooking time (min)", 10, 120, 30)
@@ -149,8 +173,6 @@ with tabs[1]:
             with st.expander(f"{base[0].title()} Stir-Fry", expanded=True):
                 st.markdown(f"**Ingredients:** {', '.join(base[:2])}, soy sauce, garlic, oil  \n**Time:** {max(5, max_time-10)} min · **{difficulty}{tag}**")
                 if st.button("⭐ Save Recipe", key="save_recipe_1"):
-                    if 'favorite_recipes' not in st.session_state:
-                        st.session_state.favorite_recipes = []
                     st.session_state.favorite_recipes.append({
                         "name": f"{base[0].title()} Stir-Fry",
                         "ingredients": f"{', '.join(base[:2])}, soy sauce, garlic, oil",
@@ -185,10 +207,6 @@ with tabs[1]:
 # ---------------------- PLANNER ----------------------
 with tabs[2]:
     st.header("Weekly Meal Planner")
-    if 'meal_plan' not in st.session_state:
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        meals = ["Breakfast", "Lunch", "Dinner"]
-        st.session_state.meal_plan = {day: {m: "" for m in meals} for day in days}
     days = list(st.session_state.meal_plan.keys())
     cols = st.columns(7)
     for i, day in enumerate(days):
@@ -229,8 +247,6 @@ with tabs[3]:
         if not all([s_item.strip(), s_qty.strip(), s_location.strip(), s_contact.strip()]):
             st.error("Please fill all required fields (item, qty, location, contact).")
         else:
-            if 'shared_items' not in st.session_state:
-                st.session_state.shared_items = []
             st.session_state.shared_items.append({
                 "mode": mode,
                 "item": s_item.strip(),
@@ -245,7 +261,7 @@ with tabs[3]:
             })
             st.success("Sharing listing added (local session).")
 
-    if 'shared_items' in st.session_state and st.session_state.shared_items:
+    if st.session_state.shared_items:
         st.markdown("### Local shared items")
         for i, it in enumerate(st.session_state.shared_items):
             with st.expander(f"{it['item']} — {it['location']} ({it['mode']})", expanded=(i==0)):
@@ -264,7 +280,7 @@ with tabs[3]:
 # ---------------------- FAVORITES ----------------------
 with tabs[4]:
     st.header("Favorite Recipes")
-    if 'favorite_recipes' not in st.session_state or not st.session_state.favorite_recipes:
+    if not st.session_state.favorite_recipes:
         st.info("No favorites yet. Save recipes from the generator.")
     else:
         for i, r in enumerate(st.session_state.favorite_recipes):
@@ -283,8 +299,6 @@ with tabs[4]:
 # ---------------------- WASTE TRACKER ----------------------
 with tabs[5]:
     st.header("Food Waste Tracker")
-    if 'waste_log' not in st.session_state:
-        st.session_state.waste_log = []
     w_col1, w_col2 = st.columns(2)
     with w_col1:
         w_item = st.text_input("Item name", key="w_item", value="Cooked rice")
@@ -348,11 +362,11 @@ with tabs[6]:
     r_display = st.text_input("Display name (optional)", key="reg_disp")
     if st.button("Register", key="btn_reg"):
         if not r_user or not r_pass:
-            st.error("Enter username & password.")
+            st.error("Enter username and password.")
         elif r_user in st.session_state.users:
             st.error("Username already exists.")
         else:
-            st.session_state.users[r_user] = {"password": r_pass, "role": r_role, "display": r_display or r_user}
+            st.session_state.users[r_user] = {"password": r_pass, "role": r_role, "display": r_display or r_user, "contact": "", "location": ""}
             st.success(f"Registered {r_user} as {r_role}. Now login from above.")
 
 # ---------------------- ORDERS (SQLite-backed) ----------------------
@@ -403,20 +417,20 @@ with tabs[7]:
         if st.session_state.current_role != "ngo":
             st.info("Login as an NGO to view and confirm orders.")
         else:
-            orders = fetch_orders()  # all orders; we will show status filter control
-            # Filter controls
+            orders = fetch_orders()  # all orders
             stat_filter = st.selectbox("Filter by status", ["All", "Available", "Confirmed", "Unavailable"], index=0, key="stat_filter")
             if stat_filter == "All":
                 filtered = orders
             else:
-                filtered = [r for r in orders if r[9] == stat_filter]  # status is column index 9
+                # status column index is 10
+                filtered = [r for r in orders if r[10] == stat_filter]
 
             if not filtered:
                 st.info("No orders match the filter.")
             else:
                 for row in filtered:
-                    # row mapping (by SELECT * order):
-                    # 0:id,1:restaurant,2:username,3:item,4:qty,5:pickup,6:location,7:contact,8:notes,9:price,10:status,11:posted_on,12:confirmed_by,13:confirmed_on
+                    # columns indices:
+                    # 0:id,1:restaurant,2:username,3:item,4:qty,5:pickup,6:location,7:contact,8:notes,9:price,10:status,11:posted_on,12:confirmed_by,13:confirmed_on,14:ngo_contact,15:ngo_location
                     oid = row[0]
                     restaurant = row[1]
                     username = row[2]
@@ -431,6 +445,8 @@ with tabs[7]:
                     posted_on = row[11]
                     confirmed_by = row[12]
                     confirmed_on = row[13]
+                    ngo_contact = row[14] if len(row) > 14 else ""
+                    ngo_location = row[15] if len(row) > 15 else ""
 
                     with st.expander(f"{item} — {restaurant} ({status})", expanded=False):
                         st.write(f"**Qty:** {qty}")
@@ -442,6 +458,10 @@ with tabs[7]:
                             st.info(f"Notes: {notes}")
                         if confirmed_by:
                             st.write(f"**Confirmed by:** {confirmed_by} on {confirmed_on}")
+                            if ngo_contact:
+                                st.write(f"**NGO Contact:** {ngo_contact}")
+                            if ngo_location:
+                                st.write(f"**NGO Location:** {ngo_location}")
 
                         # Map link + embed
                         try:
@@ -457,7 +477,13 @@ with tabs[7]:
                         with c1:
                             if st.button("✅ Confirm (Pick-up)", key=f"confirm_{oid}"):
                                 if status == "Available":
-                                    update_order_status(oid, "Confirmed", confirmed_by=st.session_state.current_user)
+                                    ngo_username = st.session_state.current_user
+                                    ngo_info = st.session_state.users.get(ngo_username, {})
+                                    ngo_contact_val = ngo_info.get("contact", "")
+                                    ngo_location_val = ngo_info.get("location", "")
+                                    # store human-friendly display name if available
+                                    confirmed_by_display = ngo_info.get("display", ngo_username)
+                                    update_order_status(oid, "Confirmed", confirmed_by=confirmed_by_display, ngo_contact=ngo_contact_val, ngo_location=ngo_location_val)
                                     st.success("Order confirmed. Contact restaurant for pickup.")
                                 else:
                                     st.warning("Order not available to confirm.")
@@ -469,9 +495,8 @@ with tabs[7]:
                                 else:
                                     st.info("Already unavailable.")
                         with c3:
-                            # allow restaurant owner removal: show button only if logged-in NGO? No — removal only by restaurant owner
-                            st.write("")  # spacer
-                        # No explicit rerun call needed — Streamlit reruns after button interaction
+                            # removal allowed only by restaurant owner (not shown here)
+                            st.write("")
 
     # small UX message area
     if st.session_state.msg_flag == "order_posted":
