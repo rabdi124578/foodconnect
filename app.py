@@ -1,4 +1,4 @@
-# app.py - FoodWise (final, corrected)
+# app.py - FoodWise 
 import streamlit as st
 import pandas as pd
 import sqlite3
