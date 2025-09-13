@@ -4,6 +4,7 @@ import pandas as pd
 import sqlite3
 from datetime import datetime, timedelta
 from streamlit.components.v1 import html
+import random
 
 # ---------------------- CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
@@ -155,54 +156,167 @@ with tabs[0]:
     st.write("Features: Leftover recipe generator, weekly planner, favorites, waste tracker, and a persistent Restaurant↔NGO orders system.")
     st.write("To share orders across devices: host this app on one server (Streamlit Cloud / Render / Railway) so both laptops use the same orders.db on the server.")
 
-# ---------------------- RECIPES ----------------------
+# ---------------------- RECIPES (ENHANCED: 20 RECIPES AI-LIKE GENERATOR) ----------------------
 with tabs[1]:
-    st.header("Leftover Recipe Generator")
+    st.header("Leftover Recipe Generator (AI-like)")
+
     ingredients = st.text_input("Ingredients (comma-separated)", key="rec_ing", placeholder="e.g., rice, carrot, egg")
     diet = st.selectbox("Diet preference", ["Any", "Vegetarian", "Vegan", "Gluten-free", "Dairy-free"])
     max_time = st.slider("Max cooking time (min)", 10, 120, 30)
     difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Easy")
+
+    def build_recipe_title(main, style, dish_type):
+        return f"{style} {main} {dish_type}".replace("  ", " ").title()
+
+    def generate_20_recipes(ingredients_list, diet_pref, max_time_limit, difficulty_pref):
+        """
+        Deterministic-ish generator that mixes the user's ingredients with sensible additions,
+        cooking methods, cuisines and dish types to produce 20 varied recipes.
+        """
+        # normalize and choose main ingredients
+        mains = ingredients_list[:] if ingredients_list else ["vegetables"]
+        # ensure at least 2 mains
+        if len(mains) < 2:
+            mains = mains + ["vegetables"] * (2 - len(mains))
+
+        cuisines = ["Indian-style", "Italian", "Chinese-style", "Mexican", "Mediterranean", "Thai", "Middle Eastern", "Fusion"]
+        methods = ["Stir-Fry", "Baked", "Roasted", "Grilled", "Pan-fried", "One-Pot", "Slow-cooked", "Sauteed", "Steamed"]
+        dish_types = ["Rice", "Wraps", "Curry", "Soup", "Salad", "Patties", "Casserole", "Bowl", "Skillet", "Pasta"]
+        extras = {
+            "Indian-style": ["garam masala", "turmeric", "cumin", "coriander", "green chilies"],
+            "Italian": ["olive oil", "basil", "parmesan", "oregano", "garlic"],
+            "Chinese-style": ["soy sauce", "ginger", "spring onions", "sesame oil"],
+            "Mexican": ["cilantro", "lime", "cumin", "chili powder"],
+            "Mediterranean": ["olive oil", "lemon", "feta", "olives"],
+            "Thai": ["lime", "fish sauce", "coconut milk", "chilies"],
+            "Middle Eastern": ["sumac", "tahini", "paprika", "parsley"],
+            "Fusion": ["mixed herbs", "soy sauce", "lemon"]
+        }
+
+        recipes = []
+        rng = random.Random(42)  # deterministic seed for reproducible outputs
+
+        # produce 20 recipes by combining patterns
+        for i in range(20):
+            main = rng.choice(mains)
+            cuisine = rng.choice(cuisines)
+            method = rng.choice(methods)
+            dish_type = rng.choice(dish_types)
+            additions = rng.sample(extras.get(cuisine, ["salt", "pepper"]), k=2)
+            # Build ingredient list
+            ingreds = [main]
+            # include a second ingredient if available
+            if len(ingredients_list) >= 2:
+                ingreds.append(ingredients_list[1])
+            # add sensible staples
+            staples = ["salt", "pepper", "oil", "water"]
+            # vary staples inclusion
+            staples_add = rng.sample(staples, k=2)
+            # combine
+            full_ingredients = ingreds + additions + staples_add
+            # filter diet preferences (basic filter)
+            if diet_pref == "Vegan":
+                # remove dairy-related words
+                full_ingredients = [it for it in full_ingredients if it.lower() not in ("yogurt", "parmesan", "feta", "butter", "milk")]
+            if diet_pref == "Vegetarian":
+                # keep as is (we're not adding meat)
+                pass
+            if diet_pref == "Gluten-free":
+                # avoid "tortillas", "pasta" mentions in description (we will adapt instructions)
+                pass
+
+            # time estimate logic
+            base_time = max(10, min(20 + i, max_time_limit + 10))
+            est_time = min(base_time, max_time_limit + 20)
+
+            # Difficulty heuristic
+            diff_map = {"Easy": ["Stir-Fry", "Salad", "Wraps", "Soup"], "Medium": ["Baked", "Casserole", "Pasta", "Skillet"], "Hard": ["Slow-cooked", "Roasted", "Grilled"]}
+            det_diff = difficulty_pref
+            # if method indicates higher complexity, bump difficulty sometimes
+            if method in diff_map["Hard"] and difficulty_pref == "Easy":
+                det_diff = "Medium"
+
+            title = build_recipe_title(main, cuisine, f"{method} {dish_type}")
+
+            # Build instructions (concise, practical)
+            instructions = []
+            instructions.append(f"1. Prepare: Chop {', '.join(set([main] + (ingredients_list[1:2] if len(ingredients_list)>1 else [])))} and gather {', '.join(additions)}.")
+            if "Stir-Fry" in method or "Pan-fried" in method or "Sauteed" in method:
+                instructions.append("2. Heat oil in a large pan or wok over high heat. Add aromatics (garlic/ginger) and stir briefly.")
+                instructions.append(f"3. Add main ingredients and {ingredients_list[1] if len(ingredients_list)>1 else 'vegetables'}. Stir-fry until cooked through.")
+                instructions.append("4. Add sauces/spices, toss, and serve hot.")
+            elif "Soup" in dish_type or "Steamed" in method:
+                instructions.append("2. In a pot, sauté aromatics, add broth/water and main ingredients.")
+                instructions.append("3. Simmer until flavors meld and vegetables are tender.")
+                instructions.append("4. Adjust seasoning and serve.")
+            elif "Baked" in method or "Roasted" in method or "Casserole" in dish_type:
+                instructions.append("2. Preheat oven to 180–200°C (350–400°F).")
+                instructions.append("3. Combine ingredients in a baking dish, add sauce or stock, cover if needed.")
+                instructions.append("4. Bake until golden and cooked through. Let rest, then serve.")
+            elif "Wraps" in dish_type:
+                instructions.append("2. Cook filling (stir-fry or roast), warm tortillas, assemble with sauce and greens.")
+                instructions.append("3. Roll tightly and slice to serve.")
+            elif "Pasta" in dish_type:
+                instructions.append("2. Boil pasta until al dente. In a pan, make a quick sauce with main ingredients.")
+                instructions.append("3. Toss pasta with sauce, add herbs/cheese if available, and serve.")
+            else:
+                instructions.append("2. Cook main ingredient with spices and any added vegetables until done.")
+                instructions.append("3. Finish with fresh herbs/acid (lemon/vinegar) and serve.")
+
+            # small tips
+            tips = []
+            if "soup" in title.lower():
+                tips.append("Tip: Blend part of the soup for a thicker texture.")
+            if "wrap" in title.lower():
+                tips.append("Tip: Add crunchy vegetables for texture.")
+            if "baked" in title.lower() or "casserole" in title.lower():
+                tips.append("Tip: Let it rest 5–10 minutes before serving to set.")
+            if "stir-fry" in title.lower():
+                tips.append("Tip: High heat and quick tossing preserve texture.")
+
+            recipe = {
+                "id": f"gen_{i+1}",
+                "name": title,
+                "ingredients": ", ".join(dict.fromkeys(full_ingredients)),  # unique order-preserving
+                "instructions": "\n".join(instructions) + ("\n\n" + " ".join(tips) if tips else ""),
+                "time": f"{est_time} mins",
+                "difficulty": det_diff,
+                "cuisine": cuisine,
+                "method": method,
+                "tags": f"{cuisine}, {method}, {dish_type}"
+            }
+            recipes.append(recipe)
+
+        return recipes
+
     if st.button("Generate Recipes", key="gen_rec"):
         if not ingredients.strip():
             st.warning("Please enter at least one ingredient.")
         else:
             items = [it.strip() for it in ingredients.split(",") if it.strip()]
-            base = items[:3] if len(items) >= 3 else items + ["veggies", "spices"][len(items):]
-            tag = "" if diet == "Any" else f" · {diet}"
-            st.success("Suggested recipes:")
-            with st.expander(f"{base[0].title()} Stir-Fry", expanded=True):
-                st.markdown(f"Ingredients: {', '.join(base[:2])}, soy sauce, garlic, oil  \n*Time:* {max(5, max_time-10)} min · {difficulty}{tag}")
-                if st.button("⭐ Save Recipe", key="save_recipe_1"):
-                    st.session_state.favorite_recipes.append({
-                        "name": f"{base[0].title()} Stir-Fry",
-                        "ingredients": f"{', '.join(base[:2])}, soy sauce, garlic, oil",
-                        "instructions": "1. Heat oil\n2. Sauté garlic\n3. Add main ingredient and stir-fry\n4. Serve",
-                        "time": f"{max(5, max_time-10)} mins",
-                        "difficulty": difficulty
-                    })
-                    st.success("Saved to favorites.")
-            with st.expander(f"{base[0].title()} {base[1].title()} Wraps"):
-                st.markdown(f"Ingredients: {', '.join(base[:2])}, tortillas, yogurt  \n*Time:* {max_time} min · {difficulty}{tag}")
-                if st.button("⭐ Save Recipe", key="save_recipe_2"):
-                    st.session_state.favorite_recipes.append({
-                        "name": f"{base[0].title()} {base[1].title()} Wraps",
-                        "ingredients": f"{', '.join(base[:2])}, tortillas, yogurt",
-                        "instructions": "1. Cook & spice\n2. Fill tortillas\n3. Roll & serve",
-                        "time": f"{max_time} mins",
-                        "difficulty": difficulty
-                    })
-                    st.success("Saved to favorites.")
-            with st.expander(f"Hearty {base[0].title()} Soup"):
-                st.markdown(f"Ingredients: {', '.join(base)}, broth  \n*Time:* {max_time+10} min · {difficulty}{tag}")
-                if st.button("⭐ Save Recipe", key="save_recipe_3"):
-                    st.session_state.favorite_recipes.append({
-                        "name": f"Hearty {base[0].title()} Soup",
-                        "ingredients": f"{', '.join(base)}, broth",
-                        "instructions": "1. Sauté\n2. Add broth\n3. Simmer\n4. Serve",
-                        "time": f"{max_time+10} mins",
-                        "difficulty": difficulty
-                    })
-                    st.success("Saved to favorites.")
+            recipes = generate_20_recipes(items, diet, max_time, difficulty)
+            st.success(f"Generated {len(recipes)} recipe ideas — tailored to your inputs.")
+
+            # Display recipes in two columns for better UX
+            for i, r in enumerate(recipes, start=1):
+                with st.expander(f"{i}. {r['name']} · {r['time']} · {r['difficulty']} · {r['tags']}", expanded=(i <= 2)):
+                    st.write(f"**Ingredients:** {r['ingredients']}")
+                    st.write("**Instructions:**")
+                    st.write(r['instructions'].replace("\n", "  \n"))
+                    col_a, col_b = st.columns([1,1])
+                    with col_a:
+                        # Save recipe to favorites
+                        if st.button("⭐ Save Recipe", key=f"save_recipe_gen_{i}"):
+                            st.session_state.favorite_recipes.append({
+                                "name": r["name"],
+                                "ingredients": r["ingredients"],
+                                "instructions": r["instructions"],
+                                "time": r["time"],
+                                "difficulty": r["difficulty"]
+                            })
+                            st.success("Recipe saved to favorites.")
+                    with col_b:
+                        st.download_button("Download Recipe (.txt)", data=f"Name: {r['name']}\n\nIngredients: {r['ingredients']}\n\nInstructions:\n{r['instructions']}\n\nTime: {r['time']} | Difficulty: {r['difficulty']}", file_name=f"{r['name'].replace(' ', '_')}.txt")
 
 # ---------------------- PLANNER ----------------------
 with tabs[2]:
