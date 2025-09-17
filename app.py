@@ -9,73 +9,7 @@ import random
 # ---------------------- CONFIG ----------------------
 st.set_page_config(page_title="FoodWise", page_icon="🍲", layout="wide")
 DB_PATH = "orders.db"
-# ---------------------- CUSTOM STYLING ----------------------
-st.markdown("""
-    <style>
-    /* Global background */
-    .stApp {
-        background: linear-gradient(135deg, #1f1c2c, #928dab);
-        color: #ffffff;
-        font-family: 'Segoe UI', sans-serif;
-    }
 
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-    }
-
-    /* Headings */
-    h1, h2, h3 {
-        color: #f8f9fa;
-        font-weight: 600;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    }
-
-    /* Buttons */
-    div.stButton > button {
-        background: linear-gradient(90deg, #ff416c, #ff4b2b);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 0.6em 1.2em;
-        font-size: 1em;
-        font-weight: bold;
-        transition: 0.3s;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
-    }
-    div.stButton > button:hover {
-        background: linear-gradient(90deg, #ff4b2b, #ff416c);
-        transform: scale(1.05);
-    }
-
-    /* Cards / Containers */
-    .stMarkdown, .stDataFrame, .stTable {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0px 4px 20px rgba(0,0,0,0.2);
-        margin-bottom: 20px;
-    }
-
-    /* Text inputs */
-    input, textarea {
-        border-radius: 10px !important;
-        border: 1px solid #ddd !important;
-        padding: 10px !important;
-        font-size: 1em !important;
-    }
-
-    /* Metrics styling */
-    [data-testid="stMetricValue"] {
-        font-size: 2em;
-        font-weight: bold;
-        color: #00e6e6;
-    }
-
-    </style>
-""", unsafe_allow_html=True)
 
 
 # ---------------------- DATABASE HELPERS ----------------------
